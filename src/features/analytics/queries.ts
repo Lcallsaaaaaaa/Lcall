@@ -29,6 +29,24 @@ export interface AnalyticsData {
   retention: { label: string; count: number }[];
   /** 登録月別の当月アクティブ（当月アクセスありの人数・率） */
   cohorts: { label: string; registered: number; activeThisMonth: number; rate: number }[];
+  /** 広告コード（流入元）別パフォーマンス */
+  adSource: {
+    /** タグ列（広告コード×タグのマトリクス用） */
+    tags: { id: string; name: string; color?: string }[];
+    rows: {
+      code: string;
+      label: string;
+      registrations: number;
+      blocked: number;
+      blockRate: number;
+      /** 登録後24時間以内にブロックされた数（流入の質の悪さの指標） */
+      blockedWithin24h: number;
+      /** ユニーククリック率＝クリック実績のある友だち数 / 登録数 */
+      clickRate: number;
+      /** tagId → そのコードの友だちのうち当該タグ保有数 */
+      tagCounts: Record<string, number>;
+    }[];
+  };
 }
 
 export async function getAnalytics(now: Date = new Date()): Promise<AnalyticsData> {
@@ -43,6 +61,7 @@ export async function getAnalytics(now: Date = new Date()): Promise<AnalyticsDat
     tags,
     friendTags,
     carouselCards,
+    adCodes,
   ] = await Promise.all([
     db.friends.list(),
     db.lineAccounts.list(),
@@ -53,6 +72,7 @@ export async function getAnalytics(now: Date = new Date()): Promise<AnalyticsDat
     db.tags.list(),
     db.friendTags.list(),
     db.carouselCards.list(),
+    db.adCodes.list(),
   ]);
 
   const deliveries = broadcasts.reduce((s, b) => s + b.sentCount, 0);
@@ -172,6 +192,79 @@ export async function getAnalytics(now: Date = new Date()): Promise<AnalyticsDat
     retention[i === -1 ? buckets.length - 1 : i].count++;
   }
 
+  // 広告コード（流入元）別パフォーマンス。流入の質（登録/ブロック/24h以内ブロック/クリック率/タグ）を比較
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const adCodeLabel = new Map(adCodes.map((a) => [a.code, a.label]));
+  interface AdBucket {
+    code: string;
+    label: string;
+    registrations: number;
+    blocked: number;
+    blockedWithin24h: number;
+    clicked: number;
+    tagCounts: Record<string, number>;
+  }
+  const adBuckets = new Map<string, AdBucket>();
+  const friendBucket = new Map<string, string>(); // friendId → code
+  const ensureBucket = (code: string): AdBucket => {
+    let b = adBuckets.get(code);
+    if (!b) {
+      b = {
+        code,
+        label: code === "" ? "流入元なし" : (adCodeLabel.get(code) ?? code),
+        registrations: 0,
+        blocked: 0,
+        blockedWithin24h: 0,
+        clicked: 0,
+        tagCounts: {},
+      };
+      adBuckets.set(code, b);
+    }
+    return b;
+  };
+  for (const f of friends) {
+    const code = f.sourceCode ?? "";
+    const b = ensureBucket(code);
+    friendBucket.set(f.id, code);
+    b.registrations++;
+    if (f.status === "blocked") {
+      b.blocked++;
+      if (
+        f.blockedAt &&
+        new Date(f.blockedAt).getTime() - new Date(f.registeredAt).getTime() <= DAY_MS
+      ) {
+        b.blockedWithin24h++;
+      }
+    }
+    if (f.lastClickAt) b.clicked++;
+  }
+  for (const ft of friendTags) {
+    const code = friendBucket.get(ft.friendId);
+    if (code === undefined) continue;
+    const b = adBuckets.get(code);
+    if (b) b.tagCounts[ft.tagId] = (b.tagCounts[ft.tagId] ?? 0) + 1;
+  }
+  const adSource = {
+    tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    rows: [...adBuckets.values()]
+      .map((b) => ({
+        code: b.code,
+        label: b.label,
+        registrations: b.registrations,
+        blocked: b.blocked,
+        blockRate: b.registrations ? b.blocked / b.registrations : 0,
+        blockedWithin24h: b.blockedWithin24h,
+        clickRate: b.registrations ? b.clicked / b.registrations : 0,
+        tagCounts: b.tagCounts,
+      }))
+      // 「流入元なし」は最後、それ以外は登録数の多い順
+      .sort((x, y) => {
+        if (x.code === "" && y.code !== "") return 1;
+        if (y.code === "" && x.code !== "") return -1;
+        return y.registrations - x.registrations;
+      }),
+  };
+
   return {
     kpis: {
       total: friends.length,
@@ -194,5 +287,6 @@ export async function getAnalytics(now: Date = new Date()): Promise<AnalyticsDat
     hourly,
     retention,
     cohorts,
+    adSource,
   };
 }

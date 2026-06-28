@@ -168,6 +168,58 @@ export default async function AnalyticsPage() {
         </Card>
       </section>
 
+      <section className="mt-4">
+        <Card>
+          <CardHeader
+            title="広告コード別パフォーマンス"
+            description="流入元ごとの登録数・ブロック・登録後24h以内ブロック・クリック率・タグ付与（流入の質を比較）"
+          />
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-2">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted">広告コード</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">登録</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">ブロック</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">ブロック率</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">24h以内</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">クリック率</th>
+                  {a.adSource.tags.map((t) => (
+                    <th key={t.id} className="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-muted">
+                      {t.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {a.adSource.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={6 + a.adSource.tags.length} className="px-4 py-6 text-center text-muted">
+                      データがありません。
+                    </td>
+                  </tr>
+                )}
+                {a.adSource.rows.map((r) => (
+                  <tr key={r.code || "__organic__"} className="border-b border-line last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-ink">{r.label}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-ink">{fmt(r.registrations)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-ink">{fmt(r.blocked)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted">{pct(r.blockRate)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-ink">{fmt(r.blockedWithin24h)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-ink">{pct(r.clickRate)}</td>
+                    {a.adSource.tags.map((t) => (
+                      <td key={t.id} className="px-4 py-2.5 text-right tabular-nums text-muted">
+                        {fmt(r.tagCounts[t.id] ?? 0)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </section>
+
       <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title="アクセス時間帯" description="クリックの時刻別分布" />
