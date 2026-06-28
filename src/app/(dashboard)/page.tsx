@@ -9,6 +9,8 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 import { LineBreakdown } from "@/components/charts/LineBreakdown";
 import { RegistrationTrend } from "@/components/charts/RegistrationTrend";
 import { buttonClasses } from "@/components/ui/Button";
@@ -20,6 +22,10 @@ const fmt = (n: number) => n.toLocaleString("ja-JP");
 const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
 
 export default async function DashboardPage() {
+  // チャット対応(staff)はダッシュボードを持たない＝受信箱へ。
+  const user = await getSession();
+  if (user?.role === "staff") redirect("/inbox");
+
   const { kpis, lineBreakdown, trend } = await getDashboardData();
 
   const cards = [

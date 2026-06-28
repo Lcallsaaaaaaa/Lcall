@@ -18,10 +18,10 @@ export const ROLE_OPTIONS: { value: Role; label: string }[] = [
  * navキー → 閲覧/操作を許可する役割。未定義キーは owner のみ（fail-closed）。
  * - owner: 全部（分析・契約/請求・スタッフ管理を含む）
  * - admin（運用担当）: 集客/顧客/配信/獲得（分析・お金・スタッフ管理は不可）
- * - staff（チャット対応）: チャット・顧客・テンプレ・タグのみ
+ * - staff（チャット対応）: チャットのみ（受信箱に顧客情報・タグ・定型文・カルーセルを内蔵）
  */
 const ACCESS: Record<string, Role[]> = {
-  dashboard: ["owner", "admin", "staff"],
+  dashboard: ["owner", "admin"],
   analytics: ["owner"],
   billing: ["owner"],
   staff: ["owner"],
@@ -38,10 +38,10 @@ const ACCESS: Record<string, Role[]> = {
   surveys: ["owner", "admin"],
   lp: ["owner", "admin"],
   media: ["owner", "admin"],
-  friends: ["owner", "admin", "staff"],
+  friends: ["owner", "admin"],
   chat: ["owner", "admin", "staff"],
-  templates: ["owner", "admin", "staff"],
-  tags: ["owner", "admin", "staff"],
+  templates: ["owner", "admin"],
+  tags: ["owner", "admin"],
 };
 
 /** この役割が当該navキー（画面/機能）を見られるか。 */
