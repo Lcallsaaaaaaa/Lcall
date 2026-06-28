@@ -140,3 +140,8 @@ html {
     animation: none;
   }
 }
+
+/* ---- チャット受信箱：顧客プロフィール欄の開閉でメッセージ領域を広げる ---- */
+html.chat-hide-profile #chat-profile {
+  display: none !important;
+}

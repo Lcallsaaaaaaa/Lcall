@@ -3,6 +3,7 @@ import { Inbox, Plus, RefreshCcw, X } from "lucide-react";
 import Link from "next/link";
 import { ChatComposer } from "@/components/features/ChatComposer";
 import { MarkReadOnOpen } from "@/components/features/MarkReadOnOpen";
+import { ProfilePanelToggle } from "@/components/features/ProfilePanelToggle";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { Select } from "@/components/ui/Form";
 import { TagChip } from "@/components/ui/TagChip";
@@ -54,7 +55,7 @@ export default async function InboxPage({
   return (
     <div className="flex h-full overflow-hidden">
       {/* スレッド一覧 */}
-      <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface">
+      <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface">
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4 text-sm font-semibold text-ink">
           <Inbox className="size-4 text-muted" />
           チャット対応
@@ -145,6 +146,7 @@ export default async function InboxPage({
             <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line bg-surface px-4">
               <span className="font-medium text-ink">{thread.friend.displayName}</span>
               <div className="flex items-center gap-2">
+                <ProfilePanelToggle />
                 {thread.aiEnabled && (
                   <form action={toggleAiPaused.bind(null, thread.friend.id)}>
                     <button
@@ -174,7 +176,7 @@ export default async function InboxPage({
                 <div key={m.id} className={cn("flex", m.direction === "out" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
-                      "max-w-[75%] rounded-2xl px-3.5 py-2 text-sm",
+                      "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm",
                       m.direction === "out" ? "gradient-bg text-white" : "border border-line bg-surface text-ink"
                     )}
                   >
@@ -224,7 +226,7 @@ export default async function InboxPage({
 
       {/* プロフィールパネル */}
       {thread && (
-        <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-line bg-surface p-4 lg:flex">
+        <aside id="chat-profile" className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-line bg-surface p-4 lg:flex">
           <div className="flex flex-col items-center text-center">
             {thread.friend.pictureUrl ? (
               <img src={thread.friend.pictureUrl} alt="" className="size-16 rounded-full object-cover" />
