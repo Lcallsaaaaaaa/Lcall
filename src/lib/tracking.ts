@@ -5,9 +5,18 @@
  * Worker がリダイレクトしつつクリックを Next の取込APIへ送る（§7）。
  */
 
-/** 計測URLの基底（Worker のオリジン）。dev は wrangler dev の :8787。 */
+/**
+ * 計測URLの基底。優先順位:
+ *   1) TRACKING_BASE_URL（専用 Cloudflare Worker を立てた場合のそのURL）
+ *   2) LCALL_PUBLIC_BASE_URL（公開URL）＝アプリ内蔵の /r/ で計測（Worker不要）
+ *   3) http://localhost:8787（dev の wrangler）
+ */
 export function trackingBaseUrl(): string {
-  return process.env.TRACKING_BASE_URL ?? "http://localhost:8787";
+  return (
+    process.env.TRACKING_BASE_URL?.trim() ||
+    process.env.LCALL_PUBLIC_BASE_URL?.trim() ||
+    "http://localhost:8787"
+  );
 }
 
 /** Worker と Next 取込APIの共有シークレット。 */
