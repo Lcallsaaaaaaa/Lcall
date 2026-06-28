@@ -7,16 +7,25 @@
 
 /**
  * 計測URLの基底。優先順位:
- *   1) TRACKING_BASE_URL（専用 Cloudflare Worker を立てた場合のそのURL）
+ *   1) TRACKING_BASE_URL（専用 Cloudflare Worker を本番URLで明示設定した場合のみ）
  *   2) LCALL_PUBLIC_BASE_URL（公開URL）＝アプリ内蔵の /r/ で計測（Worker不要）
  *   3) http://localhost:8787（dev の wrangler）
+ *
+ * 重要: `TRACKING_BASE_URL` が localhost を指す（開発用の設定残り等）場合は、
+ * 公開URLが設定されていればそちらを優先する。これにより本番のカルーセル/計測URLに
+ * localhost が混入して実際の友だちに配信されてしまう事故を防ぐ。
  */
 export function trackingBaseUrl(): string {
-  return (
-    process.env.TRACKING_BASE_URL?.trim() ||
-    process.env.LCALL_PUBLIC_BASE_URL?.trim() ||
-    "http://localhost:8787"
-  );
+  const strip = (u: string) => u.replace(/\/+$/, "");
+  const isLocal = (u: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(u);
+  const explicit = process.env.TRACKING_BASE_URL?.trim();
+  const publicBase = process.env.LCALL_PUBLIC_BASE_URL?.trim();
+  // 専用Workerを本番URLで明示したときだけ最優先（localhost の設定残りは無視）
+  if (explicit && !isLocal(explicit)) return strip(explicit);
+  // 公開URLがあればアプリ内蔵 /r/ で計測（Worker不要）
+  if (publicBase) return strip(publicBase);
+  // どちらも無いローカル開発: 明示の localhost 値、最後に dev 既定 Worker
+  return explicit ? strip(explicit) : "http://localhost:8787";
 }
 
 /** Worker と Next 取込APIの共有シークレット。 */
