@@ -55,7 +55,7 @@ export default async function InboxPage({
   return (
     <div className="flex h-full overflow-hidden">
       {/* スレッド一覧 */}
-      <aside className="flex w-56 shrink-0 flex-col border-r border-line bg-surface">
+      <aside className="flex w-[30%] shrink-0 flex-col border-r border-line bg-surface md:w-56">
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4 text-sm font-semibold text-ink">
           <Inbox className="size-4 text-muted" />
           チャット対応
