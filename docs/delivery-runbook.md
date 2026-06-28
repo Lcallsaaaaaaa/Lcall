@@ -50,7 +50,7 @@ npm run provision -- <slug> --base-url <公開URL> --email <client@example.com> 
 1. GitHub にリポジトリを作成し push（`.env*`・`clients/`・`.data` は .gitignore 済みなので秘密は上がらない）。
 2. Render → New → **Web Service**（または `render.yaml` の Blueprint）。
    - Build: `npm install && npm run build` ／ Start: `npm run start` ／ Plan: **Starter（常時起動）** ／ Region: Singapore ／ Health Check: `/login`。
-   - **環境変数**：`clients/<slug>/.env` の中身を貼る（`DATABASE_URL`/`LCALL_SESSION_SECRET`/`LCALL_WORKER_KEY`/`LCALL_OPERATOR_KEY`/`LCALL_ADMIN_EMAIL`/`LCALL_ADMIN_PASSWORD_HASH`/`PG_POOL_MAX=3` など）。**`PORT` は登録しない**（Render が自動注入し `next start` が `$PORT` を使う）。
+   - **環境変数**：`clients/<slug>/.env` の中身を貼る。必要キーの一覧と要否は **[.env.example](../.env.example)** を参照（必須＝`DATABASE_URL`/`PG_POOL_MAX`/`LCALL_SESSION_SECRET`/`LCALL_WORKER_KEY`/`LCALL_OPERATOR_KEY`/`LCALL_PUBLIC_BASE_URL`/`LCALL_ADMIN_EMAIL`/`LCALL_ADMIN_PASSWORD_HASH`/`LCALL_ALLOW_DEV_LOGIN=false`）。**`LCALL_PUBLIC_BASE_URL` は公開URL**（共有/Webhook/登録URLが内部ホストにならないため必須）。**`PORT` は登録しない**（Render が自動注入し `next start` が `$PORT` を使う）。
 3. 固定HTTPSのURLを控え、**コンソールのクライアント詳細「公開URL」に設定**。
 4. Render → **Cron Job** で `curl "<公開URL>/api/scenarios/run?key=<LCALL_WORKER_KEY>"` を5分毎（予約配信・シナリオ発火）。
 
