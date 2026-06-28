@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
   createSessionToken,
@@ -7,6 +6,7 @@ import {
   verifyLogin,
   type SessionUser,
 } from "@/lib/auth";
+import { redirectTo } from "@/lib/http";
 
 /**
  * ログイン。登録メールアドレス＋パスワードで認証（env の管理者資格情報と照合）。
@@ -20,16 +20,16 @@ export async function POST(request: Request) {
   if (email || password) {
     const user = await verifyLogin(email, password);
     if (!user) {
-      return NextResponse.redirect(new URL("/login?error=bad_credentials", request.url), 303);
+      return redirectTo("/login?error=bad_credentials");
     }
-    const res = NextResponse.redirect(new URL("/", request.url), 303);
+    const res = redirectTo("/");
     res.cookies.set(SESSION_COOKIE, createSessionToken(user), sessionCookieOptions());
     return res;
   }
 
   // 資格情報なしの送信 → 開発ログイン（許可時のみ）
   if (!isDevLoginAllowed()) {
-    return NextResponse.redirect(new URL("/login?error=dev_disabled", request.url), 303);
+    return redirectTo("/login?error=dev_disabled");
   }
   const dev: SessionUser = {
     id: "u_dev",
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     name: "開発ユーザー",
     role: "owner",
   };
-  const res = NextResponse.redirect(new URL("/", request.url), 303);
+  const res = redirectTo("/");
   res.cookies.set(SESSION_COOKIE, createSessionToken(dev), sessionCookieOptions());
   return res;
 }

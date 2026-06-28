@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
-import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
+import { redirectTo } from "@/lib/http";
 import { saveImageBytes } from "@/lib/storage";
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -17,13 +17,13 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) {
-    return NextResponse.redirect(new URL("/media?error=nofile", request.url), 303);
+    return redirectTo("/media?error=nofile");
   }
   if (!file.type.startsWith("image/")) {
-    return NextResponse.redirect(new URL("/media?error=type", request.url), 303);
+    return redirectTo("/media?error=type");
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.redirect(new URL("/media?error=size", request.url), 303);
+    return redirectTo("/media?error=size");
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
@@ -38,5 +38,5 @@ export async function POST(request: Request) {
   });
 
   revalidatePath("/media");
-  return NextResponse.redirect(new URL("/media", request.url), 303);
+  return redirectTo("/media");
 }

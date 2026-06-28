@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 import {
   SESSION_COOKIE,
   createSessionToken,
@@ -7,6 +6,7 @@ import {
   sessionCookieOptions,
   type SessionUser,
 } from "@/lib/auth";
+import { redirectTo } from "@/lib/http";
 
 const OAUTH_STATE_COOKIE = "lcall_oauth_state";
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const savedState = store.get(OAUTH_STATE_COOKIE)?.value;
 
   if (!code || !state || !savedState || state !== savedState) {
-    return NextResponse.redirect(new URL("/login?error=oauth_state", request.url));
+    return redirectTo("/login?error=oauth_state");
   }
 
   try {
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 
     // 本番アクセス制御: メール検証済み＋allowlist通過のみログイン許可（fail-closed）
     if (info.verified_email === false || !isEmailAllowed(info.email)) {
-      return NextResponse.redirect(new URL("/login?error=not_allowed", request.url));
+      return redirectTo("/login?error=not_allowed");
     }
 
     const user: SessionUser = {
@@ -65,11 +65,11 @@ export async function GET(request: Request) {
       role: "owner",
     };
 
-    const res = NextResponse.redirect(new URL("/", request.url));
+    const res = redirectTo("/");
     res.cookies.set(SESSION_COOKIE, createSessionToken(user), sessionCookieOptions());
     res.cookies.delete(OAUTH_STATE_COOKIE);
     return res;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=oauth_failed", request.url));
+    return redirectTo("/login?error=oauth_failed");
   }
 }

@@ -1,13 +1,14 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { isGoogleConfigured } from "@/lib/auth";
+import { redirectTo } from "@/lib/http";
 
 const OAUTH_STATE_COOKIE = "lcall_oauth_state";
 
 /** Google OAuth 開始。GOOGLE_* が未設定なら開発用ログインへ案内。 */
-export async function GET(request: Request) {
+export async function GET() {
   if (!isGoogleConfigured()) {
-    return NextResponse.redirect(new URL("/login?error=google_not_configured", request.url));
+    return redirectTo("/login?error=google_not_configured");
   }
 
   const state = crypto.randomUUID();
