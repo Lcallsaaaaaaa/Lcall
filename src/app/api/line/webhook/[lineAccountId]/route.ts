@@ -76,7 +76,7 @@ export async function POST(
           const content = await getMessageContent(account.channelAccessToken, String(msg.id));
           if (content.ok && content.buffer) {
             try {
-              imageUrl = await saveImageBytes(content.buffer, content.contentType ?? "image/jpeg");
+              imageUrl = await saveImageBytes(content.buffer, content.contentType ?? "image/jpeg", "chat");
             } catch {
               text = "[画像]（保存に失敗しました）";
             }

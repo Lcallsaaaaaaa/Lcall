@@ -390,6 +390,8 @@ export interface StoredImage {
   contentType: string;
   /** 画像バイトの base64 */
   data: string;
+  /** "chat"=受信画像（保存期間で自動削除対象）/ "asset"=メディア・カルーセル（保持）。未指定はasset扱い */
+  kind?: "chat" | "asset";
   createdAt: ISODate;
 }
 

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import { processDueBroadcasts } from "@/features/broadcasts/deliver";
 import { processScenarios } from "@/features/scenarios/process";
+import { purgeExpiredChatImages } from "@/lib/storage";
 import { workerKey } from "@/lib/tracking";
 
 /**
@@ -20,11 +21,23 @@ async function run(request: Request) {
   const db = getDataProvider();
   const result = await processScenarios(db);
   const broadcasts = await processDueBroadcasts(db);
+  // 受信画像の保存期間切れを自動削除（LCALL_IMAGE_RETENTION_DAYS。内部で12時間に1回へ間引く）
+  let imagesPurged = 0;
+  try {
+    imagesPurged = (await purgeExpiredChatImages(db)).purged;
+  } catch {
+    // パージ失敗で配信処理は止めない
+  }
   revalidatePath("/scenarios");
   revalidatePath("/broadcasts");
   revalidatePath("/carousel");
   revalidatePath("/");
-  return Response.json({ ok: true, ...result, broadcastsSent: broadcasts.count });
+  return Response.json({
+    ok: true,
+    ...result,
+    broadcastsSent: broadcasts.count,
+    imagesPurged,
+  });
 }
 
 export async function GET(request: Request) {
