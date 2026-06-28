@@ -380,6 +380,19 @@ export interface ScenarioDelivery {
   sentAt: ISODate;
 }
 
+/**
+ * アプリ内蔵の画像保管（R2 未設定時のフォールバック）。
+ * バイト列を base64 で保持し、`/api/img/{id}` で配信する（Render等でローカルファイルが
+ * 配信/永続化できない問題を回避）。
+ */
+export interface StoredImage {
+  id: ID;
+  contentType: string;
+  /** 画像バイトの base64 */
+  data: string;
+  createdAt: ISODate;
+}
+
 /** メディア（画像）ライブラリ。保管した画像から選んで設定する */
 export interface MediaAsset {
   id: ID;
@@ -598,6 +611,7 @@ export interface EntityMap {
   scenarioSteps: ScenarioStep;
   scenarioDeliveries: ScenarioDelivery;
   mediaAssets: MediaAsset;
+  storedImages: StoredImage;
   systemSettings: SystemSetting;
   // コントロールプレーン（運営DBのみ使用）
   clientAccounts: ClientAccount;

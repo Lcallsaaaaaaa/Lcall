@@ -449,6 +449,7 @@ export function buildSeed(now: Date = new Date()): Seed {
       { id: "set_1", key: "distribution_strategy", value: "weighted" },
       { id: "set_2", key: "plan", value: "standard" },
     ],
+    storedImages: [],
     // コントロールプレーン（運営DBのみ使用。クライアントのデモseedでは空）
     clientAccounts: [],
     clientInstances: [],

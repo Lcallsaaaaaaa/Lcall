@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { AwsClient } from "aws4fetch";
+import { getDataProvider } from "@/lib/data/provider";
 
 function guessImageType(url: string): string {
   const u = url.toLowerCase();
@@ -17,6 +18,13 @@ export async function readImageBytes(
   url: string
 ): Promise<{ buffer: Buffer; contentType: string } | null> {
   try {
+    // アプリ内蔵保管（/api/img/{id}）は DB から直接読む（相対・絶対どちらのURLでも）
+    const m = url.match(/\/api\/img\/([^/?#]+)/);
+    if (m) {
+      const img = await getDataProvider().storedImages.get(decodeURIComponent(m[1]));
+      if (!img) return null;
+      return { buffer: Buffer.from(img.data, "base64"), contentType: img.contentType };
+    }
     if (/^https?:\/\//.test(url)) {
       const res = await fetch(url);
       if (!res.ok) return null;
@@ -57,9 +65,16 @@ export async function saveImageBytes(buf: Buffer, contentType: string): Promise<
     return `${publicBase.replace(/\/$/, "")}/${filename}`;
   }
 
-  // フォールバック: ローカルファイルシステム
-  const dir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, filename), buf);
-  return `/uploads/${filename}`;
+  // フォールバック: アプリ内蔵保管（DBに保存し /api/img/{id} で配信）。
+  // ローカルファイルは Render 等の本番で配信/永続化できないため使わない。
+  const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  await getDataProvider().storedImages.create({
+    id,
+    contentType,
+    data: buf.toString("base64"),
+    createdAt: new Date().toISOString(),
+  });
+  // LCALL_PUBLIC_BASE_URL があれば絶対URL（LINEカルーセル画像はHTTPS絶対URL必須）。無ければ相対。
+  const base = process.env.LCALL_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "") ?? "";
+  return `${base}/api/img/${id}`;
 }
