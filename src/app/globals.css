@@ -1,26 +1,142 @@
 @import "tailwindcss";
 
+/*
+  LCall design tokens — Stripe風の落ち着いた管理画面。
+  ブランドのInstagram風グラデーションは「アクセント限定」で使う:
+  CTAボタン / ロゴ / 選択中ナビ / 重要KPIのアクセントのみ。
+  それ以外（背景・テーブル・通常ボタン）はモノトーン基調。
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brand-gradient: linear-gradient(135deg, #f58529, #dd2a7b, #8134af, #515bd4);
+
+  --canvas: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f6f7f9;
+  --line: #e8eaed;
+  --line-strong: #d7dbe0;
+  --ink: #1f2937;
+  --muted: #6b7280;
+  --faint: #9ca3af;
+  --brand: #dd2a7b;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/* Tailwind v4: @theme で宣言した --color-* がそのまま bg-/text-/border- ユーティリティになる */
+@theme {
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f7f9;
+  --color-line: #e8eaed;
+  --color-line-strong: #d7dbe0;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-faint: #9ca3af;
+  --color-brand: #dd2a7b;
+
+  --color-ok: #16a34a;
+  --color-ok-bg: #dcfce7;
+  --color-warn: #b45309;
+  --color-warn-bg: #fef3c7;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fee2e2;
+  --color-neutral: #4b5563;
+  --color-neutral-bg: #f3f4f6;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- ブランドアクセント用ヘルパー（限定使用） ---- */
+.gradient-bg {
+  background-image: var(--brand-gradient);
+}
+
+.gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 重要KPIカードの左アクセント罫 */
+.gradient-rail {
+  position: relative;
+  overflow: hidden;
+}
+.gradient-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background-image: var(--brand-gradient);
+}
+
+/* CTAボタンのホバー時の沈み */
+.cta-shadow {
+  box-shadow: 0 1px 2px rgba(129, 52, 175, 0.25), 0 4px 12px rgba(221, 42, 123, 0.18);
+}
+
+/* ---- 公開LP用モーション（Apple風の控えめな演出） ---- */
+html {
+  scroll-behavior: smooth;
+}
+
+/* 読み込み時の立ち上がり（ヒーロー等。stagger は inline の animation-delay で） */
+@keyframes lc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lc-rise {
+  animation: lc-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ヒーロー背景でゆっくり漂うグラデーション光（dynamicな空気感・うるさくしない） */
+@keyframes lc-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(28px, -22px) scale(1.12);
+  }
+}
+.lc-float {
+  animation: lc-float 14s ease-in-out infinite;
+}
+
+/* カードのホバー浮き上がり */
+.lc-lift {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lc-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(31, 41, 55, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .lc-rise,
+  .lc-float {
+    animation: none;
+  }
 }

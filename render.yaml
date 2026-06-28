@@ -1,0 +1,53 @@
+# Render Blueprint（クライアントインスタンスのテンプレ）。
+# 1クライアント＝1サービス。複数社のときは name を変えて社ごとに作成する。
+# 秘密値は sync:false ＝ダッシュボードで入力（このファイルには載せない）。
+# 注意: PORT は Render が自動注入するので設定しない（next start が $PORT を使う）。
+services:
+  - type: web
+    name: lcall-demo # 社ごとに変更（例: lcall-acme）
+    runtime: node
+    region: singapore # 最寄り。東京が必要なら別ホスティングを検討
+    plan: starter # 常時起動（無料はスリープ→Webhook遅延のため不可）
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      # 永続化（②共有Postgres: クライアント専用DBの接続文字列）
+      - key: DATABASE_URL
+        sync: false
+      - key: PG_POOL_MAX
+        value: "3"
+      # 認証・基盤（provision の .env からコピー）
+      - key: LCALL_SESSION_SECRET
+        sync: false
+      - key: LCALL_WORKER_KEY
+        sync: false
+      - key: LCALL_OPERATOR_KEY
+        sync: false
+      - key: LCALL_ADMIN_EMAIL
+        sync: false
+      - key: LCALL_ADMIN_PASSWORD_HASH
+        sync: false
+      - key: LCALL_ALLOW_DEV_LOGIN
+        value: "false"
+      # 計測（このクライアント用 Worker を立てたら設定）
+      - key: TRACKING_BASE_URL
+        sync: false
+      # 任意（必要時に設定）
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false

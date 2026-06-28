@@ -1,0 +1,19 @@
+name = "lcall-tracker"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# Worker → Next の宛先と共有シークレット（ローカル既定）
+[vars]
+NEXT_BASE_URL = "http://localhost:3000"
+WORKER_KEY = "lcall-dev-worker-key"
+
+# リンク表のキャッシュ（読み取り主体）。
+# ローカル(wrangler dev)は Miniflare のローカルKVを使うため id は不問。
+# 本番デプロイ前に `wrangler kv namespace create LINKS` で作成し id を置換すること。
+[[kv_namespaces]]
+binding = "LINKS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# 任意: 期限切れキャッシュ整理などに使えるcron（今回は未使用）
+# [triggers]
+# crons = ["*/30 * * * *"]

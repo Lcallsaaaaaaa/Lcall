@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -17,8 +18,18 @@
 /.next/
 /out/
 
+# cloudflare wrangler の一時・ビルド成果物（worker/.wrangler など）
+.wrangler/
+
 # production
 /build
+
+# uploaded media (local filesystem storage; production uses R2/S3/Drive)
+/public/uploads
+
+# 永続化データ（file アダプタ）＆ クライアント別インスタンス（データ・秘密情報）
+/.data
+/clients
 
 # misc
 .DS_Store
@@ -39,3 +50,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+.vercel

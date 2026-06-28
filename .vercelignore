@@ -1,0 +1,6 @@
+# Vercelデプロイに不要なものは上げない（型チェック・ビルド対象から外す）
+worker
+clients
+.data
+docs
+public/uploads

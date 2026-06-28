@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LCall 使い方マニュアル</title>
+<style>
+  :root{
+    --brand:#dd2a7b; --ink:#1f2937; --muted:#6b7280; --faint:#9ca3af;
+    --line:#e8eaed; --line-strong:#d7dbe0; --canvas:#f7f8fa; --surface:#fff;
+    --grad:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4);
+    --ok:#16a34a; --ok-bg:#dcfce7; --warn:#b45309; --warn-bg:#fef3c7;
+    --info-bg:#fdf2f8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,system-ui,sans-serif;
+    color:var(--ink); line-height:1.75; font-size:14px; background:var(--canvas);
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{ max-width:880px; margin:0 auto; padding:0 24px; }
+
+  /* ---- 表紙 ---- */
+  .cover{
+    min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;
+    text-align:center; page-break-after:always; padding:60px 24px;
+  }
+  .logo-mark{ display:inline-flex; align-items:center; gap:14px; margin-bottom:36px; }
+  .logo-box{
+    width:64px;height:64px;border-radius:16px; background-image:var(--grad);
+    display:flex;align-items:center;justify-content:center; color:#fff; font-weight:800; font-size:34px;
+    box-shadow:0 6px 20px rgba(221,42,123,.28);
+  }
+  .logo-word{ font-size:40px; font-weight:800; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .cover h1{ font-size:34px; margin:8px 0 6px; letter-spacing:.02em; }
+  .cover .sub{ color:var(--muted); font-size:16px; margin:0 0 40px; }
+  .cover .meta{ color:var(--faint); font-size:13px; line-height:2; }
+  .cover .pill{
+    display:inline-block; margin-top:28px; padding:8px 18px; border-radius:999px;
+    background:var(--info-bg); color:var(--brand); font-weight:700; font-size:13px; border:1px solid #f6d3e4;
+  }
+
+  /* ---- 目次 ---- */
+  .toc{ page-break-after:always; padding:48px 0; }
+  .toc h2{ font-size:22px; border:0; padding:0; margin:0 0 20px; }
+  .toc ol{ columns:2; column-gap:48px; padding-left:18px; margin:0; }
+  .toc li{ margin:0 0 9px; break-inside:avoid; }
+  .toc a{ color:var(--ink); text-decoration:none; }
+  .toc .grp{ font-weight:700; color:var(--brand); list-style:none; margin:14px 0 6px; margin-left:-18px; font-size:13px; letter-spacing:.04em; }
+
+  /* ---- セクション ---- */
+  section{ page-break-before:always; padding:28px 0 8px; }
+  section.flow{ page-break-before:auto; } /* 連続表示用 */
+  h2{
+    font-size:23px; margin:0 0 4px; padding-bottom:10px; display:flex; align-items:center; gap:12px;
+  }
+  h2 .num{
+    flex:0 0 auto; width:34px;height:34px; border-radius:9px; background-image:var(--grad); color:#fff;
+    display:inline-flex; align-items:center; justify-content:center; font-size:15px; font-weight:800;
+  }
+  h2 .path{ font-size:12px; color:var(--faint); font-weight:600; margin-left:auto; font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .lead{ color:var(--muted); margin:6px 0 18px; }
+  h3{ font-size:15px; margin:22px 0 8px; color:var(--ink); border-left:3px solid var(--brand); padding-left:10px; }
+
+  figure{ margin:14px 0 20px; break-inside:avoid; }
+  img.screen{ width:100%; display:block; border:1px solid var(--line-strong); border-radius:10px; box-shadow:0 2px 10px rgba(31,41,55,.06); }
+  figcaption{ font-size:12px; color:var(--faint); text-align:center; margin-top:8px; }
+
+  ul,ol{ margin:8px 0 14px; padding-left:22px; }
+  li{ margin:4px 0; }
+  ol.steps{ counter-reset:step; list-style:none; padding-left:0; }
+  ol.steps>li{ counter-increment:step; position:relative; padding:6px 0 6px 38px; border-bottom:1px dashed var(--line); }
+  ol.steps>li:last-child{ border-bottom:0; }
+  ol.steps>li::before{
+    content:counter(step); position:absolute; left:0; top:6px; width:24px;height:24px; border-radius:50%;
+    background:var(--canvas); border:1px solid var(--line-strong); color:var(--brand); font-weight:800; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  .callout{ border-radius:10px; padding:12px 16px; margin:14px 0; font-size:13.5px; break-inside:avoid; }
+  .callout .t{ font-weight:800; display:block; margin-bottom:2px; }
+  .tip{ background:var(--info-bg); border:1px solid #f6d3e4; }
+  .tip .t{ color:var(--brand); }
+  .warn{ background:var(--warn-bg); border:1px solid #f3dca0; }
+  .warn .t{ color:var(--warn); }
+
+  table.kv{ width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:13.5px; }
+  table.kv th,table.kv td{ border:1px solid var(--line); padding:8px 12px; text-align:left; vertical-align:top; }
+  table.kv th{ background:var(--surface-2,#f6f7f9); width:34%; font-weight:700; }
+  .badge{ display:inline-block; padding:1px 9px; border-radius:999px; font-size:11.5px; font-weight:700; }
+  .b-ok{ background:var(--ok-bg); color:var(--ok); }
+  .b-warn{ background:var(--warn-bg); color:var(--warn); }
+  .b-muted{ background:#f3f4f6; color:#4b5563; }
+
+  .role-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:14px 0; }
+  .role-card{ border:1px solid var(--line); border-radius:10px; padding:14px; break-inside:avoid; }
+  .role-card h4{ margin:0 0 6px; font-size:15px; }
+  .role-card .who{ color:var(--faint); font-size:12px; margin-bottom:8px; }
+  .role-card ul{ margin:0; padding-left:18px; font-size:12.5px; }
+
+  hr.sep{ border:0; border-top:1px solid var(--line); margin:26px 0; }
+  .foot{ text-align:center; color:var(--faint); font-size:12px; padding:30px 0; }
+
+  @media print{
+    body{ background:#fff; font-size:11.5pt; }
+    .page{ max-width:none; padding:0; }
+    img.screen{ box-shadow:none; }
+    a{ color:var(--ink); text-decoration:none; }
+  }
+  @page{ size:A4; margin:14mm 13mm; }
+</style>
+</head>
+<body>
+
+<!-- ========== 表紙 ========== -->
+<div class="cover">
+  <div class="logo-mark">
+    <span class="logo-box">L</span>
+    <span class="logo-word">LCall</span>
+  </div>
+  <h1>使い方マニュアル</h1>
+  <p class="sub">低コスト納品型 LINE マーケティングシステム ／ 管理画面ガイド</p>
+  <div class="meta">
+    クライアント様向け 操作マニュアル<br>
+    対象バージョン：2026年版<br>
+    本書の画面は初期サンプルデータでの表示例です
+  </div>
+  <span class="pill">画面を見ながら、迷わず運用を始められます</span>
+</div>
+
+<div class="page">
+
+<!-- ========== 目次 ========== -->
+<nav class="toc">
+  <h2>目次</h2>
+  <ol>
+    <li class="grp">はじめに</li>
+    <li><a href="#s-intro">1. LCall でできること・画面の見方</a></li>
+    <li><a href="#s-login">2. ログインと権限（ロール）</a></li>
+    <li class="grp">概要</li>
+    <li><a href="#s-dashboard">3. ダッシュボード</a></li>
+    <li><a href="#s-analytics">4. 分析</a></li>
+    <li class="grp">集客</li>
+    <li><a href="#s-line">5. LINEアカウント</a></li>
+    <li><a href="#s-distribution">6. 分散登録URL</a></li>
+    <li><a href="#s-adcodes">7. 広告コード</a></li>
+    <li class="grp">顧客</li>
+    <li><a href="#s-friends">8. 顧客管理</a></li>
+    <li><a href="#s-chat">9. チャット対応</a></li>
+    <li><a href="#s-ai">10. AIキャラ（自動応答）</a></li>
+    <li><a href="#s-templates">11. 定型文</a></li>
+    <li><a href="#s-tags">12. タグ管理</a></li>
+    <li class="grp">配信</li>
+    <li><a href="#s-broadcasts">13. 配信管理</a></li>
+    <li><a href="#s-scenarios">14. シナリオ配信</a></li>
+    <li><a href="#s-carousel">15. カルーセル</a></li>
+    <li class="grp">獲得</li>
+    <li><a href="#s-forms">16. 申込フォーム</a></li>
+    <li><a href="#s-surveys">17. アンケート</a></li>
+    <li><a href="#s-lp">18. LP管理</a></li>
+    <li><a href="#s-media">19. メディア</a></li>
+    <li class="grp">設定</li>
+    <li><a href="#s-billing">20. 契約・請求</a></li>
+    <li><a href="#s-staff">21. スタッフ管理</a></li>
+    <li class="grp">付録</li>
+    <li><a href="#s-faq">22. よくある質問・運用のヒント</a></li>
+  </ol>
+</nav>
+
+<!-- ========== 1. はじめに ========== -->
+<section id="s-intro">
+  <h2><span class="num">1</span>LCall でできること・画面の見方</h2>
+  <p class="lead">LCall は、LINE公式アカウントを使った集客・接客・配信・分析をひとつにまとめた管理画面です。専門知識がなくても、画面の案内に沿って操作できます。</p>
+
+  <h3>主にできること</h3>
+  <ul>
+    <li><b>集客</b>：登録用URLや広告コードで友だちを増やし、流入元を記録</li>
+    <li><b>接客</b>：1:1チャット対応、AIによる自動応答、定型文・タグ管理</li>
+    <li><b>配信</b>：一斉配信・予約配信・カルーセル・ステップ（シナリオ）配信</li>
+    <li><b>獲得</b>：申込フォーム・アンケート・LP（ランディングページ）</li>
+    <li><b>分析</b>：登録数・クリック・ブロック率などをグラフとCSVで把握</li>
+  </ul>
+
+  <h3>共通レイアウト（どの画面も同じ構成）</h3>
+  <table class="kv">
+    <tr><th>左：サイドバー</th><td>機能の一覧。「概要・集客・顧客・配信・獲得・設定」のグループに分かれています。お使いの権限（ロール）によって表示される項目が変わります。</td></tr>
+    <tr><th>上：トップバー</th><td>右上にログイン中のお名前・メールアドレス、その横に「ログアウト」。</td></tr>
+    <tr><th>中央：作業エリア</th><td>選んだ機能の一覧や入力フォームが表示されます。重要な操作ボタン（新規作成など）は右上にあります。</td></tr>
+  </table>
+
+  <div class="callout tip"><span class="t">デザインの見方</span>ピンク〜紫のグラデーションは「重要な操作・選択中の項目・主要な数値」を表すアクセントです。グラデーションのボタン＝そのページの主役の操作、と覚えてください。</div>
+</section>
+
+<!-- ========== 2. ログインと権限 ========== -->
+<section id="s-login">
+  <h2><span class="num">2</span>ログインと権限（ロール）<span class="path">/login</span></h2>
+  <p class="lead">配布されたメールアドレスとパスワードでログインします。アカウントごとに「権限（ロール）」が設定されており、権限によって見える画面・できる操作が変わります。</p>
+
+  <figure><img class="screen" src="img/login.png" alt="ログイン画面"><figcaption>ログイン画面</figcaption></figure>
+
+  <h3>ログイン手順</h3>
+  <ol class="steps">
+    <li>ブラウザで管理画面のURLを開きます。</li>
+    <li><b>メールアドレス</b>と<b>パスワード</b>を入力します。</li>
+    <li>グラデーションの<b>「ログイン」</b>ボタンを押すとダッシュボードに進みます。</li>
+  </ol>
+
+  <h3>3つの権限（ロール）と見える範囲</h3>
+  <div class="role-grid">
+    <div class="role-card">
+      <h4>オーナー</h4>
+      <div class="who">管理者（経営・責任者）</div>
+      <ul><li>すべての画面</li><li>分析・売上</li><li>契約・請求</li><li>スタッフ管理</li></ul>
+    </div>
+    <div class="role-card">
+      <h4>運用担当</h4>
+      <div class="who">配信・集客の担当者</div>
+      <ul><li>配信・LINE設定</li><li>フォーム/アンケート/LP</li><li>顧客・タグ・テンプレ</li><li>✕ 分析・お金・スタッフ管理</li></ul>
+    </div>
+    <div class="role-card">
+      <h4>チャット対応</h4>
+      <div class="who">接客スタッフ</div>
+      <ul><li>チャット対応</li><li>顧客・タグ</li><li>定型文</li><li>✕ 配信・お金・分析</li></ul>
+    </div>
+  </div>
+
+  <div class="callout tip"><span class="t">安全設計</span>見えない画面は、メニューに表示されないだけでなく、URLを直接入力してもアクセスできない仕組みです。役割に応じて必要な範囲だけを安心して任せられます。スタッフの追加・権限の割り当ては「21. スタッフ管理」を参照してください。</div>
+</section>
+
+<!-- ========== 3. ダッシュボード ========== -->
+<section id="s-dashboard">
+  <h2><span class="num">3</span>ダッシュボード<span class="path">/</span></h2>
+  <p class="lead">ログイン直後に表示される、全体の状況がひと目でわかるホーム画面です。</p>
+  <figure><img class="screen" src="img/dashboard.png" alt="ダッシュボード画面"><figcaption>ダッシュボード（主要KPIと推移グラフ）</figcaption></figure>
+
+  <h3>表示される数値（KPI）</h3>
+  <ul>
+    <li><b>総LINE登録者数 / 本日の登録数 / 今月の登録数</b>：友だちの増え方</li>
+    <li><b>配信数・クリック数・クリック率</b>：配信の反応</li>
+    <li><b>フォーム申込数・アンケート回答数</b>：獲得の状況</li>
+    <li><b>登録月別推移</b>グラフと、<b>LINEアカウント別の友だち数</b>（稼働中／警告／停止中の状態つき）</li>
+  </ul>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>毎日のはじめに開いて、登録・配信・反応の流れを確認します。</li>
+    <li>右上の<b>「新規配信を作成」</b>からすぐに配信づくりへ進めます。</li>
+    <li>もっと詳しい数字は左メニューの<b>「分析」</b>へ。</li>
+  </ol>
+</section>
+
+<!-- ========== 4. 分析 ========== -->
+<section id="s-analytics">
+  <h2><span class="num">4</span>分析<span class="path">/analytics</span></h2>
+  <p class="lead">登録・クリック・ブロックなどを、より詳しく確認・ダウンロードできる画面です。</p>
+  <figure><img class="screen" src="img/analytics.png" alt="分析画面"><figcaption>分析画面</figcaption></figure>
+  <h3>確認できること</h3>
+  <ul>
+    <li><b>ブロック数・ブロック率</b>、ブロックを除いた<b>実際に届くLINEユーザー数</b></li>
+    <li><b>登録月別のアクティブ率</b>（その月に登録した友だちのうち、当月にアクセスがある割合）</li>
+    <li><b>LINEアカウント別の総配信数</b> など</li>
+  </ul>
+  <h3>顧客データのダウンロード</h3>
+  <ol class="steps">
+    <li>画面内の<b>「顧客CSV（全項目）」</b>を押すとCSVファイルがダウンロードされます。</li>
+    <li>LINE追加日時・最終アクセス・最終クリック・ブロック日時・最終配信日・流入元・LTV、さらに<b>タグごとの保有状況</b>まで一覧で出力されます。</li>
+    <li>Excelやスプレッドシートで開いて、分析・名簿管理にご利用ください。</li>
+  </ol>
+  <div class="callout tip"><span class="t">権限メモ</span>分析画面は<b>オーナー</b>のみ表示されます。</div>
+</section>
+
+<!-- ========== 5. LINEアカウント ========== -->
+<section id="s-line">
+  <h2><span class="num">5</span>LINEアカウント<span class="path">/line-accounts</span></h2>
+  <p class="lead">配信や受信に使うLINE公式アカウントを登録・管理します。複数アカウントの一括管理に対応しています。</p>
+  <figure><img class="screen" src="img/line-accounts.png" alt="LINEアカウント画面"><figcaption>LINEアカウント一覧</figcaption></figure>
+
+  <h3>できること</h3>
+  <ul>
+    <li>アカウントの登録・編集（名称、チャネルの資格情報、友だち上限）</li>
+    <li>状態の管理：<span class="badge b-ok">稼働中</span> <span class="badge b-warn">警告</span> <span class="badge b-muted">停止中</span></li>
+    <li><b>Webhook URL</b>の確認（LINE Developers に登録すると、友だち追加・メッセージ受信が届くようになります）</li>
+    <li><b>AI自動応答</b>の設定（オン/オフ、使うAIキャラ、APIキー）</li>
+  </ul>
+  <h3>初期設定の手順</h3>
+  <ol class="steps">
+    <li><b>「新規追加」</b>からアカウント名と、LINEのチャネルシークレット／アクセストークンを入力します。</li>
+    <li>表示された<b>Webhook URL</b>を LINE Developers の Webhook 設定に貼り付けます。</li>
+    <li>必要に応じて<b>AI自動応答</b>をオンにし、応対させる<b>AIキャラ</b>を選びます（→「10. AIキャラ」）。</li>
+  </ol>
+  <div class="callout warn"><span class="t">注意</span>実際の送受信には、LINE公式アカウントのチャネル資格情報と、外部公開されたHTTPSのWebhook URLが必要です。資格情報の取得・登録は導入時にサポートします。</div>
+</section>
+
+<!-- ========== 6. 分散登録URL ========== -->
+<section id="s-distribution">
+  <h2><span class="num">6</span>分散登録URL<span class="path">/distribution</span></h2>
+  <p class="lead">1本の登録URLへのアクセスを、複数のLINEアカウントへ自動的に振り分けます。1アカウントあたりの友だち上限対策や、窓口の負荷分散に使います。</p>
+  <figure><img class="screen" src="img/distribution.png" alt="分散登録URL画面"><figcaption>分散登録URL</figcaption></figure>
+  <h3>振り分け方式</h3>
+  <ul>
+    <li><b>均等</b>：各アカウントに均等に割り当て</li>
+    <li><b>ランダム</b>：ランダムに割り当て</li>
+    <li><b>重み付き</b>：アカウントごとに比率を指定</li>
+    <li>満杯・停止中のアカウントを<b>除外</b>する設定も可能</li>
+  </ul>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>振り分け先のLINEアカウントと方式を選びます。</li>
+    <li>発行された<b>登録URL</b>を広告・SNS・名刺などに掲載します。</li>
+    <li>アクセスのたびに振り分けが行われ、<b>振り分けログ</b>に記録されます。</li>
+  </ol>
+</section>
+
+<!-- ========== 7. 広告コード ========== -->
+<section id="s-adcodes">
+  <h2><span class="num">7</span>広告コード<span class="path">/ad-codes</span></h2>
+  <p class="lead">「どの広告・媒体から友だち追加されたか」を記録するためのコードです。流入元を見える化できます。</p>
+  <figure><img class="screen" src="img/ad-codes.png" alt="広告コード画面"><figcaption>広告コード</figcaption></figure>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>媒体ごとに広告コード（例：春キャンペーン）を作成します。</li>
+    <li>そのコード付きの<b>登録URL</b>を各媒体に掲載します。</li>
+    <li>友だち追加されると、その人の<b>流入元</b>として自動的に記録されます（チャットの顧客プロフィールや顧客CSVで確認できます）。</li>
+  </ol>
+  <div class="callout tip"><span class="t">ポイント</span>配信内リンクのクリック計測（→「13/15」）とも連動し、クリック経由の流入元も記録できます。</div>
+</section>
+
+<!-- ========== 8. 顧客管理 ========== -->
+<section id="s-friends">
+  <h2><span class="num">8</span>顧客管理<span class="path">/friends</span></h2>
+  <p class="lead">友だち（顧客）の一覧・検索・絞り込みと、一人ひとりの詳細確認ができます。</p>
+  <figure><img class="screen" src="img/friends.png" alt="顧客一覧画面"><figcaption>顧客一覧（状態・タグで絞り込み）</figcaption></figure>
+  <h3>一覧でできること</h3>
+  <ul>
+    <li>名前・状態（有効／ブロック／解除）・タグでの<b>絞り込み・検索</b></li>
+    <li>登録LINE・流入元・最終アクセスなどの一覧表示</li>
+  </ul>
+  <figure><img class="screen" src="img/friend-detail.png" alt="顧客詳細画面"><figcaption>顧客詳細（プロフィール・タグ・履歴）</figcaption></figure>
+  <h3>詳細でできること</h3>
+  <ul>
+    <li>プロフィール、流入元、LTV（累計の価値）の確認</li>
+    <li>タグの付与・解除、このお客様だけの<b>AIキャラ</b>指定</li>
+    <li>そのままチャット対応へ移動</li>
+  </ul>
+</section>
+
+<!-- ========== 9. チャット対応 ========== -->
+<section id="s-chat">
+  <h2><span class="num">9</span>チャット対応<span class="path">/inbox</span></h2>
+  <p class="lead">お客様との1:1トークに対応する受信箱です。左にスレッド一覧、中央に会話、右にお客様のプロフィールが並びます。</p>
+  <figure><img class="screen" src="img/inbox.png" alt="チャット受信箱"><figcaption>受信箱（未読件数はメニューにバッジ表示）</figcaption></figure>
+  <figure><img class="screen" src="img/inbox-thread.png" alt="チャット個別画面（3ペイン）"><figcaption>個別スレッド：会話＋プロフィール＋返信欄</figcaption></figure>
+
+  <h3>対応の手順</h3>
+  <ol class="steps">
+    <li>左の一覧から対応したいお客様を選びます（開くと自動で既読になります）。</li>
+    <li>下部の入力欄から返信を送ります。<b>定型文</b>や<b>カルーセル</b>を選んで送ることもできます。</li>
+    <li>右パネルでお客様の<b>タグ付与</b>や<b>LINEプロフィール再取得</b>ができます。</li>
+  </ol>
+
+  <h3>AI自動応答との連携（有人切替）</h3>
+  <ul>
+    <li>AI自動応答がオンのアカウントでは、受信に対してAIが自動で返信します（→「10. AIキャラ」）。</li>
+    <li><b>スタッフが手動で返信すると、その相手のAIは自動的に一時停止</b>します（人の対応を優先）。ヘッダーのトグルでAIを再開できます。</li>
+    <li>「受信をシミュレート」ボタンで、受信時の動きをテスト確認できます。</li>
+  </ul>
+</section>
+
+<!-- ========== 10. AIキャラ ========== -->
+<section id="s-ai">
+  <h2><span class="num">10</span>AIキャラ（自動応答）<span class="path">/ai-characters</span></h2>
+  <p class="lead">AI自動応答の「人格・話し方・知識」をまとめた設定です。キャラクター単位で作っておき、アカウントやタグ、個別のお客様に割り当てます。</p>
+  <figure><img class="screen" src="img/ai-characters.png" alt="AIキャラ画面"><figcaption>AIキャラ一覧</figcaption></figure>
+  <h3>設定項目</h3>
+  <ul>
+    <li><b>名前</b>・<b>ペルソナ</b>（口調や役割の指示）・<b>FAQ</b>（よくある質問と回答）・使用<b>モデル</b></li>
+  </ul>
+  <h3>どのキャラで応答するかの優先順位</h3>
+  <ol class="steps">
+    <li>そのお客様に<b>個別指定</b>があれば、それを使用</li>
+    <li>なければ、その人が持つ<b>タグに紐づくキャラ</b></li>
+    <li>それも無ければ、<b>LINEアカウントの既定キャラ</b></li>
+  </ol>
+  <div class="callout warn"><span class="t">料金について</span>AIの自動応答は<b>1応対あたり ¥3</b>の従量課金です。実際に生成するには ANTHROPIC のAPIキー設定が必要で、未設定時はAIは応答しません（安全側）。利用状況は「20. 契約・請求」で確認できます。</div>
+</section>
+
+<!-- ========== 11. 定型文 ========== -->
+<section id="s-templates">
+  <h2><span class="num">11</span>定型文<span class="path">/message-templates</span></h2>
+  <p class="lead">よく使う返信文を登録しておき、チャット対応でワンタップ送信できます。</p>
+  <figure><img class="screen" src="img/message-templates.png" alt="定型文画面"><figcaption>定型文管理</figcaption></figure>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>挨拶・営業時間・よくある回答などを定型文として登録します。</li>
+    <li>チャット画面の<b>「定型文を選択」</b>から呼び出して送信します。</li>
+  </ol>
+</section>
+
+<!-- ========== 12. タグ管理 ========== -->
+<section id="s-tags">
+  <h2><span class="num">12</span>タグ管理<span class="path">/tags</span></h2>
+  <p class="lead">お客様を属性や興味で分類するラベルです。配信の絞り込みやAIキャラの出し分けに使います。</p>
+  <figure><img class="screen" src="img/tags.png" alt="タグ管理画面"><figcaption>タグ管理（付与数を表示）</figcaption></figure>
+  <h3>できること</h3>
+  <ul>
+    <li>タグの作成・編集・削除、付与されている人数の確認</li>
+    <li><b>自動付与</b>：配信リンクのクリックやフォーム回答で自動的にタグを付ける</li>
+    <li>タグごとに<b>担当AIキャラ</b>を割り当て（→「10」）</li>
+  </ul>
+  <div class="callout tip"><span class="t">活用例</span>「来店済み」「資料請求」「VIP」などのタグで配信対象を絞ると、反応率が上がります。</div>
+</section>
+
+<!-- ========== 13. 配信管理 ========== -->
+<section id="s-broadcasts">
+  <h2><span class="num">13</span>配信管理<span class="path">/broadcasts</span></h2>
+  <p class="lead">友だちへのメッセージ配信を作成・予約・管理します。テキスト／URL／カルーセルに対応し、過去の配信履歴も確認できます。</p>
+  <figure><img class="screen" src="img/broadcasts.png" alt="配信管理画面"><figcaption>配信履歴一覧</figcaption></figure>
+  <figure><img class="screen" src="img/broadcasts-new.png" alt="新規配信作成画面"><figcaption>新規配信の作成</figcaption></figure>
+  <h3>配信を作る手順</h3>
+  <ol class="steps">
+    <li>右上の<b>「新規作成」</b>を押し、種別（テキスト／URL／カルーセル）を選びます。</li>
+    <li>タイトル・本文を入力し、<b>対象タグ</b>と<b>送信元のLINEアカウント</b>を選びます。</li>
+    <li>URL種別では、リンクに<b>クリック計測</b>と<b>自動タグ付与</b>を設定できます。</li>
+    <li>今すぐ送る場合は<b>「送信」</b>、後で送る場合は<b>予約日時</b>を設定します。</li>
+  </ol>
+  <div class="callout tip"><span class="t">テンプレート</span>よく使う配信は<b>テンプレート</b>として保存し、次回ワンクリックで再利用できます。予約した配信は時刻になると自動送信されます。</div>
+</section>
+
+<!-- ========== 14. シナリオ配信 ========== -->
+<section id="s-scenarios">
+  <h2><span class="num">14</span>シナリオ配信<span class="path">/scenarios</span></h2>
+  <p class="lead">友だち追加などをきっかけに、時間差で複数のメッセージを自動配信する「ステップ配信」です。</p>
+  <figure><img class="screen" src="img/scenarios.png" alt="シナリオ配信画面"><figcaption>シナリオ配信</figcaption></figure>
+  <h3>できること</h3>
+  <ul>
+    <li>ステップごとに<b>経過時間</b>や<b>配信時刻</b>を指定（例：追加直後に挨拶 → 翌日に案内 → 3日後にクーポン）</li>
+    <li>タグによる<b>条件分岐</b>（例：特定タグを持つ人だけ別メッセージ）</li>
+    <li>テキストだけでなく<b>カルーセル</b>のステップも設定可能</li>
+  </ul>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>シナリオを作成し、対象タグと各ステップ（内容・タイミング・付与タグ）を設定します。</li>
+    <li>友だち追加などのきっかけで自動的に進行します。同じ人への重複配信は自動で防止されます。</li>
+  </ol>
+</section>
+
+<!-- ========== 15. カルーセル ========== -->
+<section id="s-carousel">
+  <h2><span class="num">15</span>カルーセル<span class="path">/carousel</span></h2>
+  <p class="lead">横スワイプで複数のカード（画像＋見出し＋ボタン）を見せる、リッチな配信です。商品紹介やメニュー表示に向いています。</p>
+  <figure><img class="screen" src="img/carousel.png" alt="カルーセル画面"><figcaption>カルーセル配信</figcaption></figure>
+  <h3>カードの設定</h3>
+  <ul>
+    <li>1枚ごとに<b>画像・タイトル・説明・ボタン文言・遷移先URL・付与タグ</b>を設定</li>
+    <li>画像は<b>アップロード／メディアから選択／URL指定</b>の3通り</li>
+    <li>ボタンのリンクは<b>クリック計測</b>に対応</li>
+  </ul>
+  <div class="callout warn"><span class="t">注意</span>実際のLINE配信では、カルーセルの画像はHTTPSのURLが必要です。画像保管（メディア／R2）を使うと自動でHTTPSになります。</div>
+</section>
+
+<!-- ========== 16. 申込フォーム ========== -->
+<section id="s-forms">
+  <h2><span class="num">16</span>申込フォーム<span class="path">/forms</span></h2>
+  <p class="lead">予約・問い合わせ・申込などを受け付ける公開フォームを作成できます。回答時にタグを自動付与できます。</p>
+  <figure><img class="screen" src="img/forms.png" alt="申込フォーム画面"><figcaption>申込フォーム一覧</figcaption></figure>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>フォームを作成し、項目（氏名・電話・選択肢など）を追加・並べ替えます。</li>
+    <li>公開URLを配信やLINEのリッチメニューから案内します。</li>
+    <li>回答は管理画面に蓄積され、回答者に<b>タグを自動付与</b>できます。</li>
+  </ol>
+</section>
+
+<!-- ========== 17. アンケート ========== -->
+<section id="s-surveys">
+  <h2><span class="num">17</span>アンケート<span class="path">/surveys</span></h2>
+  <p class="lead">満足度調査やニーズ把握のためのアンケートを作成・公開し、結果を集計できます。</p>
+  <figure><img class="screen" src="img/surveys.png" alt="アンケート画面"><figcaption>アンケート一覧</figcaption></figure>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>設問を作成し、公開URLを案内します。</li>
+    <li>回答は自動集計され、画面で分析できます。回答者へのタグ付与も可能です。</li>
+  </ol>
+</section>
+
+<!-- ========== 18. LP管理 ========== -->
+<section id="s-lp">
+  <h2><span class="num">18</span>LP管理<span class="path">/landing-pages</span></h2>
+  <p class="lead">友だち登録や申込みへ誘導する、簡易なランディングページ（LP）を作成・公開できます。</p>
+  <figure><img class="screen" src="img/landing-pages.png" alt="LP管理画面"><figcaption>LP管理</figcaption></figure>
+  <h3>使い方</h3>
+  <ol class="steps">
+    <li>LPを作成し、見出し・本文・登録ボタンなどを編集します。</li>
+    <li>公開URLを広告やSNSで案内し、友だち登録・申込みへ誘導します。</li>
+  </ol>
+</section>
+
+<!-- ========== 19. メディア ========== -->
+<section id="s-media">
+  <h2><span class="num">19</span>メディア<span class="path">/media</span></h2>
+  <p class="lead">配信やカルーセルで使う画像を保管・再利用できるライブラリです。</p>
+  <figure><img class="screen" src="img/media.png" alt="メディア画面"><figcaption>メディアライブラリ</figcaption></figure>
+  <h3>使い方</h3>
+  <ul>
+    <li>画像を<b>アップロード</b>（または外部URLを登録）して保管します。</li>
+    <li>配信・カルーセル・シナリオの画像選択で<b>「保管から選択」</b>として再利用できます。</li>
+  </ul>
+</section>
+
+<!-- ========== 20. 契約・請求 ========== -->
+<section id="s-billing">
+  <h2><span class="num">20</span>契約・請求<span class="path">/billing</span></h2>
+  <p class="lead">ご契約プランの確認・変更と、お支払い履歴を管理します。</p>
+  <figure><img class="screen" src="img/billing.png" alt="契約・請求画面"><figcaption>契約・請求（プランと支払い履歴）</figcaption></figure>
+  <h3>料金プラン</h3>
+  <table class="kv">
+    <tr><th>Lite</th><td>月額 ¥9,800（LINE接続 5）</td></tr>
+    <tr><th>Standard</th><td>月額 ¥15,000（LINE接続 10）</td></tr>
+    <tr><th>Pro</th><td>月額 ¥25,000（LINE接続 15）</td></tr>
+  </table>
+  <ul>
+    <li>初期導入サポート費：¥50,000（共通・初回のみ）</li>
+    <li>AI自動応答：¥3／応対（使った分だけ）</li>
+    <li>お支払いは安全な決済（Stripe）。プラン申込・変更、お支払い履歴の確認ができます。</li>
+  </ul>
+  <div class="callout tip"><span class="t">権限メモ</span>契約・請求は<b>オーナー</b>のみ表示されます。LINEのメッセージ送信料はお客様ご自身のLINE公式アカウント側のご契約に準じます。</div>
+</section>
+
+<!-- ========== 21. スタッフ管理 ========== -->
+<section id="s-staff">
+  <h2><span class="num">21</span>スタッフ管理<span class="path">/staff</span></h2>
+  <p class="lead">オーナーが、運用担当・チャット対応などのスタッフアカウントを自分で発行・管理できます。</p>
+  <figure><img class="screen" src="img/staff.png" alt="スタッフ管理画面"><figcaption>スタッフ管理（オーナー専用）</figcaption></figure>
+  <h3>スタッフを追加する手順</h3>
+  <ol class="steps">
+    <li><b>メールアドレス・初期パスワード・権限（運用担当／チャット対応）</b>を入力して追加します。</li>
+    <li>発行した情報を本人に伝えます。本人はそのメール・パスワードでログインします。</li>
+    <li>権限に応じてメニューが自動的に絞り込まれ、不要な画面は開けません。</li>
+    <li>退職・担当変更の際は、編集で権限を変更、または削除します。</li>
+  </ol>
+  <div class="callout warn"><span class="t">注意</span>スタッフ管理は<b>オーナーのみ</b>がアクセスできます。パスワードは安全に管理し、共有は避けてください。</div>
+</section>
+
+<!-- ========== 22. FAQ ========== -->
+<section id="s-faq">
+  <h2><span class="num">22</span>よくある質問・運用のヒント</h2>
+
+  <h3>よくある質問</h3>
+  <table class="kv">
+    <tr><th>ログインできません</th><td>メールアドレス／パスワードをご確認ください。不明な場合はオーナー（管理者）にスタッフ情報の再発行を依頼してください。</td></tr>
+    <tr><th>メニューに無い画面があります</th><td>権限（ロール）によって表示が変わります。必要であればオーナーに権限変更を依頼してください。</td></tr>
+    <tr><th>配信が届きません</th><td>送信元LINEアカウントが「稼働中」か、対象タグの人数が0でないかをご確認ください。予約配信は設定時刻に自動送信されます。</td></tr>
+    <tr><th>AIが返信しません</th><td>アカウントのAI自動応答がオンか、APIキーが設定済みか、相手のAIが一時停止になっていないかをご確認ください。</td></tr>
+    <tr><th>顧客データを書き出したい</th><td>「4. 分析」の「顧客CSV（全項目）」からダウンロードできます。</td></tr>
+  </table>
+
+  <h3>運用のヒント</h3>
+  <ul>
+    <li><b>毎日</b>：ダッシュボードで状況確認 → チャットの未読対応</li>
+    <li><b>集客時</b>：広告ごとに広告コードを発行し、流入元を比較</li>
+    <li><b>配信前</b>：タグで対象を絞り、URLにはクリック計測を設定</li>
+    <li><b>友だち追加時</b>：シナリオ配信で挨拶〜育成を自動化</li>
+  </ul>
+
+  <h3>用語集</h3>
+  <table class="kv">
+    <tr><th>友だち</th><td>LINE公式アカウントを登録したお客様。</td></tr>
+    <tr><th>タグ</th><td>お客様を分類するラベル。配信の絞り込みに使う。</td></tr>
+    <tr><th>カルーセル</th><td>横スワイプで複数カードを見せるリッチな配信。</td></tr>
+    <tr><th>シナリオ（ステップ配信）</th><td>きっかけから時間差で自動配信する仕組み。</td></tr>
+    <tr><th>流入元</th><td>どの広告・経路から友だち追加されたか。</td></tr>
+    <tr><th>ロール</th><td>ログインアカウントの権限（オーナー／運用担当／チャット対応）。</td></tr>
+  </table>
+</section>
+
+<hr class="sep">
+<p class="foot">LCall 使い方マニュアル ／ 本書の画面は初期サンプルデータの表示例です。<br>ご不明点は導入担当までお問い合わせください。 © 2026 LCall</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LCall 料金・サービスご案内</title>
+<style>
+  :root{
+    --brand:#dd2a7b; --ink:#1f2937; --muted:#6b7280; --faint:#9ca3af;
+    --line:#e8eaed; --line-strong:#d7dbe0; --canvas:#f7f8fa; --surface:#fff;
+    --grad:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4);
+    --ok:#16a34a; --ok-bg:#dcfce7; --warn:#b45309; --warn-bg:#fef3c7;
+    --danger:#dc2626; --danger-bg:#fee2e2; --info-bg:#fdf2f8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,system-ui,sans-serif;
+    color:var(--ink); line-height:1.75; font-size:14px; background:var(--canvas); -webkit-font-smoothing:antialiased; }
+  .page{ max-width:900px; margin:0 auto; padding:0 24px; }
+
+  .cover{ min-height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; page-break-after:always; padding:60px 24px; }
+  .logo-mark{ display:inline-flex; align-items:center; gap:14px; margin-bottom:30px; }
+  .logo-box{ width:64px;height:64px;border-radius:16px; background-image:var(--grad); display:flex;align-items:center;justify-content:center; color:#fff; font-weight:800; font-size:34px; box-shadow:0 6px 20px rgba(221,42,123,.28); }
+  .logo-word{ font-size:40px; font-weight:800; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .cover h1{ font-size:32px; margin:8px 0 8px; }
+  .cover .sub{ color:var(--muted); font-size:16px; margin:0 0 30px; max-width:560px; }
+  .cover .kpis{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+  .cover .kpi{ border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:12px 18px; min-width:150px; }
+  .cover .kpi b{ display:block; font-size:20px; background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .cover .kpi span{ font-size:12px; color:var(--muted); }
+
+  section{ page-break-before:always; padding:26px 0 8px; }
+  h2{ font-size:23px; margin:0 0 6px; padding-bottom:10px; display:flex; align-items:center; gap:12px; }
+  h2 .num{ flex:0 0 auto; width:34px;height:34px; border-radius:9px; background-image:var(--grad); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; }
+  .lead{ color:var(--muted); margin:6px 0 16px; }
+  h3{ font-size:16px; margin:22px 0 10px; border-left:3px solid var(--brand); padding-left:10px; }
+
+  figure{ margin:14px 0 18px; break-inside:avoid; }
+  .shots{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  img.screen{ width:100%; display:block; border:1px solid var(--line-strong); border-radius:10px; box-shadow:0 2px 10px rgba(31,41,55,.06); }
+  figcaption{ font-size:12px; color:var(--faint); text-align:center; margin-top:8px; }
+
+  ul,ol{ margin:8px 0 14px; padding-left:22px; } li{ margin:4px 0; }
+
+  /* 料金カード */
+  .plans{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin:16px 0; }
+  .plan{ border:1px solid var(--line); border-radius:14px; padding:18px 16px; background:var(--surface); break-inside:avoid; position:relative; }
+  .plan.feat{ border-color:transparent; box-shadow:0 0 0 2px var(--brand); }
+  .plan .rec{ position:absolute; top:-11px; left:50%; transform:translateX(-50%); background-image:var(--grad); color:#fff; font-size:11px; font-weight:800; padding:3px 12px; border-radius:999px; white-space:nowrap; }
+  .plan h4{ margin:2px 0 2px; font-size:18px; }
+  .plan .price{ font-size:28px; font-weight:800; margin:6px 0 2px; }
+  .plan .price small{ font-size:13px; color:var(--muted); font-weight:600; }
+  .plan .who{ font-size:12px; color:var(--faint); min-height:32px; }
+  .plan ul{ font-size:12.5px; padding-left:18px; margin:10px 0 0; }
+  .plan .line-n{ display:inline-block; margin-top:8px; font-size:12px; background:var(--info-bg); color:var(--brand); font-weight:700; padding:3px 10px; border-radius:999px; }
+
+  .common{ border:1px dashed var(--line-strong); border-radius:12px; padding:14px 16px; background:#fbfcfd; margin:8px 0 4px; }
+  .common b{ color:var(--brand); }
+
+  table{ width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:13px; }
+  th,td{ border:1px solid var(--line); padding:8px 11px; text-align:left; vertical-align:top; }
+  th{ background:#f6f7f9; font-weight:700; }
+  td.c,th.c{ text-align:center; }
+  .o{ color:var(--ok); font-weight:800; } /* ◎ */
+  .t{ color:var(--brand); font-weight:800; }
+  .m{ color:var(--faint); font-weight:800; } /* △ */
+  .lcall-col{ background:var(--info-bg); }
+  table.cmp th.lcall-col{ background:#fce7f1; }
+
+  .pc-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:10px 0; }
+  .pc{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; break-inside:avoid; }
+  .pc h4{ margin:0 0 8px; font-size:15px; display:flex; align-items:center; gap:8px; }
+  .pc .pros, .pc .cons{ font-size:12.5px; margin:4px 0; padding-left:18px; }
+  .pc .pros li{ color:#15803d; } .pc .cons li{ color:#b91c1c; }
+  .pc .lbl{ font-weight:800; font-size:12px; display:block; margin-top:8px; }
+  .pc.me{ box-shadow:0 0 0 2px var(--brand); border-color:transparent; }
+
+  .callout{ border-radius:10px; padding:12px 16px; margin:14px 0; font-size:13.5px; break-inside:avoid; }
+  .callout .h{ font-weight:800; display:block; margin-bottom:2px; }
+  .tip{ background:var(--info-bg); border:1px solid #f6d3e4; } .tip .h{ color:var(--brand); }
+  .warn{ background:var(--warn-bg); border:1px solid #f3dca0; } .warn .h{ color:var(--warn); }
+
+  .fit{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .fit .box{ border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .fit .yes{ border-top:3px solid var(--ok); } .fit .no{ border-top:3px solid var(--faint); }
+  .fit h4{ margin:0 0 8px; font-size:15px; }
+
+  .hl{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0; }
+  .hl .card{ border:1px solid var(--line); border-radius:12px; padding:16px; background:var(--surface); break-inside:avoid; }
+  .hl .card .ic{ width:38px;height:38px;border-radius:10px;background-image:var(--grad); display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;margin-bottom:8px; }
+  .hl .card h4{ margin:0 0 4px; font-size:15px; }
+  .hl .card p{ margin:0; font-size:13px; color:var(--muted); }
+
+  .note{ font-size:11.5px; color:var(--faint); margin-top:6px; }
+  hr.sep{ border:0; border-top:1px solid var(--line); margin:26px 0; }
+  .foot{ text-align:center; color:var(--faint); font-size:12px; padding:30px 0; }
+
+  @media print{ body{ background:#fff; font-size:11pt; } .page{ max-width:none; padding:0; } img.screen{ box-shadow:none; } a{ color:var(--ink); text-decoration:none; } }
+  @page{ size:A4; margin:13mm 12mm; }
+</style>
+</head>
+<body>
+
+<!-- 表紙 -->
+<div class="cover">
+  <div class="logo-mark"><span class="logo-box">L</span><span class="logo-word">LCall</span></div>
+  <h1>料金・サービスご案内</h1>
+  <p class="sub">AI搭載・初回シナリオ構築サポート付き。<br>低コストで始める「LINEマーケティング」管理システム</p>
+  <div class="kpis">
+    <div class="kpi"><b>月額 ¥9,800〜</b><span>3プランから選択</span></div>
+    <div class="kpi"><b>AI自動応答</b><span>標準搭載・¥3/応対</span></div>
+    <div class="kpi"><b>初回構築サポート</b><span>シナリオを伴走で設計</span></div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- 1. LCallとは -->
+<section id="s1" style="page-break-before:auto;">
+  <h2><span class="num">1</span>LCall とは</h2>
+  <p class="lead">LINE公式アカウントを使った<b>集客・接客・配信・分析</b>を、ひとつの管理画面で完結できるシステムです。「高機能だけど複雑・高額」になりがちなLINEマーケを、<b>必要十分な機能・低コスト・初期から伴走</b>で使えるようにしました。</p>
+  <div class="hl">
+    <div class="card"><div class="ic">AI</div><h4>AI自動応答を標準搭載</h4><p>お客様からの問い合わせに、設定したキャラクター（人格）で24時間自動一次対応。料金は使った分だけ¥3/応対。</p></div>
+    <div class="card"><div class="ic">⚑</div><h4>初回シナリオ構築サポート</h4><p>「友だち追加→挨拶→育成→販売」の最初のステップ配信を、専門スタッフが一緒に設計。導入直後から成果につながります。</p></div>
+    <div class="card"><div class="ic">¥</div><h4>低コスト・明朗会計</h4><p>月額9,800円から。大手の上位プランより始めやすく、機能はビジネスに必要なものを厳選。</p></div>
+    <div class="card"><div class="ic">▦</div><h4>これ1つで完結</h4><p>配信・カルーセル・ステップ配信・チャット・フォーム/アンケート/LP・分析・タグ管理まで一気通貫。</p></div>
+  </div>
+  <figure class="shots">
+    <div><img class="screen" src="img/dashboard.png" alt="ダッシュボード"><figcaption>実際の管理画面：ダッシュボード</figcaption></div>
+    <div><img class="screen" src="img/inbox-thread.png" alt="AIチャット"><figcaption>実際の管理画面：チャット＋AI自動応答</figcaption></div>
+  </figure>
+</section>
+
+<!-- 2. 料金プラン -->
+<section id="s2">
+  <h2><span class="num">2</span>料金プラン</h2>
+  <p class="lead">3つの月額プランから、運用規模（接続するLINE公式アカウント数）に合わせて選べます。</p>
+
+  <div class="plans">
+    <div class="plan">
+      <h4>Lite</h4>
+      <div class="price">¥9,800<small>/月（税込）</small></div>
+      <div class="who">個人事業・小規模店舗／これから始める方</div>
+      <span class="line-n">LINE接続 5アカウント</span>
+      <ul><li>全機能を利用可</li><li>初回シナリオ構築サポート</li><li>AI自動応答（¥3/応対・税込）</li></ul>
+    </div>
+    <div class="plan feat">
+      <span class="rec">おすすめ</span>
+      <h4>Standard</h4>
+      <div class="price">¥15,000<small>/月（税込）</small></div>
+      <div class="who">成長中の店舗・複数窓口を運用する方</div>
+      <span class="line-n">LINE接続 10アカウント</span>
+      <ul><li>全機能を利用可</li><li>初回シナリオ構築サポート</li><li>AI自動応答（¥3/応対・税込）</li></ul>
+    </div>
+    <div class="plan">
+      <h4>Pro</h4>
+      <div class="price">¥25,000<small>/月（税込）</small></div>
+      <div class="who">多店舗・本格運用／配信規模が大きい方</div>
+      <span class="line-n">LINE接続 15アカウント</span>
+      <ul><li>全機能を利用可</li><li>初回シナリオ構築サポート</li><li>AI自動応答（¥3/応対・税込）</li></ul>
+    </div>
+  </div>
+
+  <div class="common">
+    <b>初期導入サポート費 ¥50,000（税込・初回のみ）</b> … 専用環境の構築・初期設定に加え、<b>初回のシナリオ構築サポート</b>を含みます。<br>
+    <b>AI自動応答 ¥3／応対（従量・税込）</b> … 実際にAIが返信した分だけ。使わなければ¥0。
+  </div>
+  <p class="note">※ 表示価格はすべて税込・日本円（JPY）です。<br>
+  ※ <b>LINEのメッセージ配信料</b>は、お客様ご自身のLINE公式アカウント（LINEヤフー社）のご契約に準拠し、LCall月額には含まれません。これはLINEマーケティングツール共通の仕組みです。</p>
+</section>
+
+<!-- 3. サービスに含まれるもの -->
+<section id="s3">
+  <h2><span class="num">3</span>すべてのプランに含まれる機能・サービス</h2>
+  <table>
+    <tr><th style="width:30%">集客</th><td>分散登録URL（複数アカウントへ自動振り分け）／広告コードで流入元を計測</td></tr>
+    <tr><th>接客</th><td>1:1チャット対応（受信箱）／<b>AI自動応答（キャラクター設定）</b>／定型文／有人切替</td></tr>
+    <tr><th>配信</th><td>一斉配信（テキスト・URL・カルーセル）／予約配信／<b>シナリオ（ステップ）配信・条件分岐</b></td></tr>
+    <tr><th>獲得</th><td>申込フォーム／アンケート／LP（ランディングページ）／回答でタグ自動付与</td></tr>
+    <tr><th>管理・分析</th><td>顧客管理／タグ・セグメント／ブロック率など分析／顧客CSV全項目出力</td></tr>
+    <tr><th>体制・安心</th><td><b>専用インスタンス（データ完全分離）</b>／スタッフ権限管理（オーナー／運用担当／チャット対応）</td></tr>
+    <tr><th>導入支援</th><td><b>初回シナリオ構築サポート</b>（初期導入に含む）／使い方マニュアルの提供</td></tr>
+  </table>
+
+  <h3>AI自動応答について（標準搭載）</h3>
+  <ul>
+    <li>お客様からのよくある質問に、設定した<b>キャラクター（口調・知識・FAQ）</b>で自動返信。問い合わせ対応の負担を大きく削減します。</li>
+    <li>「オペレーターにつないで」等は人へ自動エスカレーション。スタッフが手動返信すると、その相手のAIは自動で一時停止します。</li>
+    <li>料金は<b>1応対 ¥3 の従量</b>。深夜・休業日も一次対応でき、機会損失を防ぎます。</li>
+  </ul>
+
+  <h3>初回シナリオ構築サポートについて</h3>
+  <ul>
+    <li>ツールを渡して終わり、ではありません。<b>最初の自動配信シナリオ</b>（友だち追加直後の挨拶〜数日かけた案内・クーポン等）を、ヒアリングのうえ一緒に設計します。</li>
+    <li>導入してすぐ「動く状態」でスタートできるため、成果が出るまでが早くなります。</li>
+  </ul>
+</section>
+
+<!-- 4. 導入メリット -->
+<section id="s4">
+  <h2><span class="num">4</span>LCall を選ぶメリット</h2>
+  <ol>
+    <li><b>始めやすい価格</b>：月額9,800円から。初期費用も初回構築サポート込みで明朗。</li>
+    <li><b>AIで一次対応を自動化</b>：24時間、設定キャラで自動返信。人手を増やさず対応品質を保てます。</li>
+    <li><b>導入時に伴走</b>：初回シナリオを一緒に作るので、「何から作ればいいか分からない」がありません。</li>
+    <li><b>学習コストが低い</b>：機能を必要十分に絞り、画面はシンプル。スタッフがすぐ使えます。</li>
+    <li><b>データを自社で保有・分離</b>：専用環境で運用し、顧客データはいつでもCSVで書き出せます。</li>
+  </ol>
+</section>
+
+<!-- 5. 競合比較 -->
+<section id="s5">
+  <h2><span class="num">5</span>他社サービスとの比較（正直版）</h2>
+  <p class="lead">主要なLINEマーケティングツールと、立場を変えて公平に比較します。LCallが向かない場面も正直に記載します。</p>
+
+  <table class="cmp">
+    <tr>
+      <th style="width:21%">比較項目</th>
+      <th class="c lcall-col">LCall</th>
+      <th class="c">Lステップ</th>
+      <th class="c">UTAGE</th>
+      <th class="c">エルメ（L Message）</th>
+    </tr>
+    <tr><td>月額の目安</td><td class="c lcall-col">¥9,800〜25,000</td><td class="c">数千円〜3万円超<br>（プラン幅広い）</td><td class="c">2万円台〜</td><td class="c">無料〜1万円台</td></tr>
+    <tr><td>位置づけ</td><td class="c lcall-col">LINE特化・低コスト</td><td class="c">LINE特化・高機能</td><td class="c">オールインワン<br>（LINE外も）</td><td class="c">LINE特化・低価格</td></tr>
+    <tr><td>AI自動応答</td><td class="c lcall-col"><span class="o">◎</span> 標準</td><td class="c"><span class="m">△</span> 連携次第</td><td class="c"><span class="m">△</span></td><td class="c"><span class="m">△</span></td></tr>
+    <tr><td>初回構築の伴走</td><td class="c lcall-col"><span class="o">◎</span> 標準提供</td><td class="c"><span class="m">△</span> 代理店/別料金が中心</td><td class="c"><span class="m">△</span></td><td class="c"><span class="m">△</span></td></tr>
+    <tr><td>機能の幅・成熟度</td><td class="c lcall-col"><span class="t">○</span> 必要十分</td><td class="c"><span class="o">◎</span> 非常に多機能</td><td class="c"><span class="o">◎</span> 多機能</td><td class="c"><span class="t">○</span></td></tr>
+    <tr><td>テンプレ・事例・<br>コミュニティ</td><td class="c lcall-col"><span class="m">△</span> これから</td><td class="c"><span class="o">◎</span> 豊富</td><td class="c"><span class="t">○</span></td><td class="c"><span class="t">○</span></td></tr>
+    <tr><td>学習コスト</td><td class="c lcall-col"><span class="o">低い</span></td><td class="c">高い</td><td class="c">中〜高</td><td class="c">低〜中</td></tr>
+    <tr><td>データ環境</td><td class="c lcall-col"><span class="o">◎</span> 専用・分離</td><td class="c">共有SaaS</td><td class="c">共有SaaS</td><td class="c">共有SaaS</td></tr>
+  </table>
+  <p class="note">※ 各社の料金・機能は2026年時点の一般的な情報をもとにした目安で、変動します。最新・正確な内容は各社公式サイトでご確認ください。表中の評価は当社の主観的な整理を含みます。</p>
+
+  <h3>各サービスのメリット・デメリット（公平に）</h3>
+  <div class="pc-grid">
+    <div class="pc me">
+      <h4>LCall</h4>
+      <span class="lbl" style="color:#15803d">メリット</span>
+      <ul class="pros"><li>低コストで始められる</li><li>AI自動応答が標準</li><li>初回シナリオ構築を伴走サポート</li><li>シンプルで学習コストが低い</li><li>専用環境でデータ分離</li></ul>
+      <span class="lbl" style="color:#b91c1c">デメリット（正直に）</span>
+      <ul class="cons"><li>新しいサービスで事例・テンプレ資産・コミュニティはこれから</li><li>超高度・独自の自動化や周辺連携は老舗に及ばない場合あり</li><li>AIは従量課金（使うほど費用）</li><li>大規模・超高頻度配信は上位インフラの拡張が前提</li></ul>
+    </div>
+    <div class="pc">
+      <h4>Lステップ</h4>
+      <span class="lbl" style="color:#15803d">メリット</span>
+      <ul class="pros"><li>機能が非常に豊富で作り込める</li><li>テンプレ・事例・代理店・コミュニティが充実</li><li>国内実績が多く情報が豊富</li></ul>
+      <span class="lbl" style="color:#b91c1c">デメリット</span>
+      <ul class="cons"><li>高機能ゆえ設定が複雑・学習コストが高い</li><li>上位プランは費用が高くなりやすい</li><li>初期構築は自前または別料金になりがち</li></ul>
+    </div>
+    <div class="pc">
+      <h4>UTAGE</h4>
+      <span class="lbl" style="color:#15803d">メリット</span>
+      <ul class="pros"><li>LP・メール・LINE・決済・会員サイトをオールインワン</li><li>LINE以外の集客導線も一括で持てる</li></ul>
+      <span class="lbl" style="color:#b91c1c">デメリット</span>
+      <ul class="cons"><li>LINE特化ではなく多機能で複雑</li><li>月額がやや高め</li><li>「LINEだけ」用途には機能過剰になりやすい</li></ul>
+    </div>
+    <div class="pc">
+      <h4>エルメ（L Message）</h4>
+      <span class="lbl" style="color:#15803d">メリット</span>
+      <ul class="pros"><li>無料〜低価格で手軽に始められる</li><li>基本的なLINEマーケ機能は揃う</li></ul>
+      <span class="lbl" style="color:#b91c1c">デメリット</span>
+      <ul class="cons"><li>高度な機能・大規模運用はLステップに劣る</li><li>初期構築の伴走サポートは薄め</li><li>AIによる自動応答は標準ではない</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- 6. 向き不向き -->
+<section id="s6">
+  <h2><span class="num">6</span>LCall が向いている方・向いていない方</h2>
+  <div class="fit">
+    <div class="box yes">
+      <h4>✓ 向いている方</h4>
+      <ul>
+        <li>低コストでLINEマーケを始めたい</li>
+        <li>問い合わせ対応をAIで自動化・省人化したい</li>
+        <li>最初の設定（シナリオ）を手伝ってほしい</li>
+        <li>多機能より「分かりやすさ・必要十分」を重視</li>
+        <li>顧客データを自社で分離して持ちたい</li>
+      </ul>
+    </div>
+    <div class="box no">
+      <h4>△ 他社が向く場合（正直に）</h4>
+      <ul>
+        <li>すでにLステップで大量の資産・運用がある → 移行コストを要検討</li>
+        <li>極めて高度・独自の自動化が必須 → Lステップ等</li>
+        <li>LP・会員サイト・決済まで1つで完結したい → UTAGE等</li>
+        <li>とにかく無料で試したいだけ → エルメ無料プラン等</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout tip"><span class="h">私たちの考え</span>すべてのお客様にLCallが最適だとは考えていません。規模・目的によっては他社が合う場合もあります。ヒアリングのうえ、合わないと判断した場合は正直にお伝えします。</div>
+</section>
+
+<!-- 7. FAQ + 申込の流れ -->
+<section id="s7">
+  <h2><span class="num">7</span>よくあるご質問・お申込みの流れ</h2>
+
+  <h3>よくあるご質問</h3>
+  <table>
+    <tr><th style="width:34%">LINEの配信料はかかりますか？</th><td>LINE公式アカウント側の料金（LINEヤフー社の契約）に準拠し、別途必要です。LCallの月額には含まれません（各社ツール共通）。</td></tr>
+    <tr><th>AIの料金体系は？</th><td>1応対あたり¥3の従量制です。使った分だけのお支払いで、使わなければ¥0です。</td></tr>
+    <tr><th>データは自社のものですか？</th><td>はい。専用環境で分離して運用し、顧客データはいつでもCSVで書き出せます。</td></tr>
+    <tr><th>他社からの乗り換えは？</th><td>既存の友だち・タグの移行可否はご相談ください。初回シナリオ構築サポートで立ち上げを支援します。</td></tr>
+    <tr><th>最低契約期間・解約は？</th><td>（契約条件に応じて記載：例 ○か月〜／解約はマイページから等）</td></tr>
+    <tr><th>サポート体制は？</th><td>初回シナリオ構築サポートに加え、運用に関するサポートを提供します（範囲はプランにより異なります）。</td></tr>
+  </table>
+
+  <h3>お申込み〜公開までの流れ</h3>
+  <ol>
+    <li>お問い合わせ・無料相談（課題やご要望をヒアリング）</li>
+    <li>プランのご提案・お申込み</li>
+    <li>専用環境の構築・初期設定（当社）＋<b>初回シナリオ構築サポート</b></li>
+    <li>公開・運用開始（使い方マニュアルをお渡し）</li>
+  </ol>
+
+  <div class="callout warn"><span class="h">お問い合わせ</span>（ここに会社名・担当・電話・メール・LINEなどの連絡先を記載してください）</div>
+</section>
+
+<hr class="sep">
+<p class="foot">LCall 料金・サービスご案内 ／ 本資料の価格・他社情報は2026年時点の目安であり変更される場合があります。最新条件はお問い合わせください。 © 2026 LCall</p>
+
+</div>
+</body>
+</html>
