@@ -1,5 +1,5 @@
 import { ArrowLeft, Link2, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
+import { publicBaseUrl } from "@/lib/url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LineAccountForm } from "@/components/features/LineAccountForm";
@@ -14,16 +14,14 @@ export default async function EditLineAccountPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [account, h, characters] = await Promise.all([
+  const [account, base, characters] = await Promise.all([
     getLineAccount(id),
-    headers(),
+    publicBaseUrl(),
     listAiCharacters(),
   ]);
   if (!account) notFound();
 
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const webhookUrl = `${proto}://${host}/api/line/webhook/${id}`;
+  const webhookUrl = `${base}/api/line/webhook/${id}`;
 
   return (
     <div className="mx-auto max-w-3xl p-6 lg:p-8">

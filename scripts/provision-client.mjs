@@ -75,6 +75,8 @@ LCALL_WORKER_KEY=${secret(16)}
 # 運営コンソール（コントロールプレーン）からの監視・遠隔操作用の共有シークレット
 LCALL_OPERATOR_KEY=${operatorKey}
 LCALL_ALLOW_DEV_LOGIN=false
+# 公開URL（共有リンク・Webhook URL・登録URL等の組み立てに使用。プロキシ背後の内部ホスト混入を防ぐ）
+LCALL_PUBLIC_BASE_URL=${baseUrl}
 PORT=${port}
 # --- 本番ログイン（登録メール＋パスワード）---
 LCALL_ADMIN_EMAIL=${adminEmail}

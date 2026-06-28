@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
+import { publicBaseUrl } from "@/lib/url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -22,13 +22,11 @@ const TYPE_OPTIONS: FormFieldType[] = ["text", "email", "tel", "select", "checkb
 
 export default async function FormBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, tags, h] = await Promise.all([getForm(id), listTags(), headers()]);
+  const [data, tags, base] = await Promise.all([getForm(id), listTags(), publicBaseUrl()]);
   if (!data) notFound();
   const { form, fields, responseCount } = data;
 
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const publicUrl = `${proto}://${host}/f/${id}`;
+  const publicUrl = `${base}/f/${id}`;
 
   return (
     <div className="mx-auto max-w-3xl p-6 lg:p-8">

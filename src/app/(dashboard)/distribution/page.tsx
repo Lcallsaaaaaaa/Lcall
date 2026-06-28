@@ -1,5 +1,4 @@
 import { Link2, Play, Shuffle } from "lucide-react";
-import { headers } from "next/headers";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Column, DataTable } from "@/components/ui/DataTable";
@@ -14,6 +13,7 @@ import {
   type NamedCandidate,
 } from "@/features/distribution/queries";
 import type { DistributionStrategy } from "@/lib/data/types";
+import { publicBaseUrl } from "@/lib/url";
 
 const STRATEGY_LABEL: Record<DistributionStrategy, string> = {
   random: "ランダム分散",
@@ -28,16 +28,14 @@ const STRATEGY_OPTIONS: { value: DistributionStrategy; title: string; desc: stri
 ];
 
 export default async function DistributionPage() {
-  const [strategy, candidates, logs, h] = await Promise.all([
+  const [strategy, candidates, logs, base] = await Promise.all([
     getStrategy(),
     getCandidates(),
     listDistributionLogs(20),
-    headers(),
+    publicBaseUrl(),
   ]);
 
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const commonUrl = `${proto}://${host}/api/distribute`;
+  const commonUrl = `${base}/api/distribute`;
 
   const eligibleIds = new Set(eligibleCandidates(candidates).map((c) => c.id));
 

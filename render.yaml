@@ -31,6 +31,9 @@ services:
         sync: false
       - key: LCALL_ALLOW_DEV_LOGIN
         value: "false"
+      # 公開URL（共有リンク/Webhook URL/登録URL等の基底。Renderの公開URLを設定）
+      - key: LCALL_PUBLIC_BASE_URL
+        sync: false
       # 計測（このクライアント用 Worker を立てたら設定）
       - key: TRACKING_BASE_URL
         sync: false

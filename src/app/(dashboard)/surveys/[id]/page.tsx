@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, ChevronUp, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
+import { publicBaseUrl } from "@/lib/url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -36,18 +36,16 @@ function DistBars({ rows }: { rows: { label: string; count: number }[] }) {
 
 export default async function SurveyBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, analysis, tags, h] = await Promise.all([
+  const [data, analysis, tags, base] = await Promise.all([
     getSurvey(id),
     getSurveyAnalysis(id),
     listTags(),
-    headers(),
+    publicBaseUrl(),
   ]);
   if (!data || !analysis) notFound();
   const { survey, questions, responseCount } = data;
 
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const publicUrl = `${proto}://${host}/s/${id}`;
+  const publicUrl = `${base}/s/${id}`;
 
   return (
     <div className="mx-auto max-w-3xl p-6 lg:p-8">

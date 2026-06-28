@@ -1,16 +1,14 @@
 import { Link2, Megaphone, Plus, Trash2 } from "lucide-react";
-import { headers } from "next/headers";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { FormField, Input } from "@/components/ui/Form";
 import { createAdCode, deleteAdCode } from "@/features/ad-codes/actions";
 import { listAdCodes } from "@/features/ad-codes/queries";
+import { publicBaseUrl } from "@/lib/url";
 
 export default async function AdCodesPage() {
-  const [codes, h] = await Promise.all([listAdCodes(), headers()]);
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? "http";
-  const regUrl = (code: string) => `${proto}://${host}/api/distribute?ad=${encodeURIComponent(code)}`;
+  const [codes, base] = await Promise.all([listAdCodes(), publicBaseUrl()]);
+  const regUrl = (code: string) => `${base}/api/distribute?ad=${encodeURIComponent(code)}`;
 
   return (
     <div className="mx-auto max-w-[1000px] p-6 lg:p-8">
