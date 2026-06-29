@@ -461,7 +461,7 @@ export interface ReservationPage {
   createdAt: ISODate;
 }
 
-/** 予約メニュー（type=menu のとき）。 */
+/** 予約メニュー／オプション（type=menu のとき）。kind=option は基本メニューに追加できる選択肢。 */
 export interface ReservationMenu {
   id: ID;
   reservationPageId: ID;
@@ -469,6 +469,8 @@ export interface ReservationMenu {
   durationMinutes: number;
   price?: number;
   order: number;
+  /** 既定は "menu"（基本メニュー）。"option" は追加オプション */
+  kind?: "menu" | "option";
 }
 
 /** 予約（1件の予約）。 */
@@ -481,6 +483,8 @@ export interface Reservation {
   startAt: ISODate;
   endAt: ISODate;
   status: "confirmed" | "cancelled" | "done" | "noshow";
+  /** 選択した追加オプション（ReservationMenu.kind="option" のid） */
+  optionIds?: ID[];
   /** 予約者の入力（LINE名と別に氏名・電話を取りたい場合） */
   name?: string;
   phone?: string;

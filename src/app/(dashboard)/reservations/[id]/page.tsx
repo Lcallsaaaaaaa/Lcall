@@ -7,6 +7,7 @@ import { FormField, Input, Select, Textarea } from "@/components/ui/Form";
 import { Badge } from "@/components/ui/StatusBadge";
 import {
   addReservationMenu,
+  addReservationOption,
   deleteReservationPage,
   removeReservationMenu,
   setReservationStatus,
@@ -35,7 +36,7 @@ export default async function ReservationDetailPage({ params }: { params: Promis
     publicBaseUrl(),
   ]);
   if (!detail) notFound();
-  const { page, menus } = detail;
+  const { page, menus, options } = detail;
   const publicUrl = `${base}/yoyaku/${id}`;
   const perFriendUrl = `${publicUrl}?u={friendId}`;
 
@@ -174,6 +175,46 @@ export default async function ReservationDetailPage({ params }: { params: Promis
         </Card>
       )}
 
+      {/* オプションメニュー（メニュー型のみ） */}
+      {page.type === "menu" && (
+        <Card className="mb-5">
+          <CardHeader title="オプションメニュー" description="基本メニューに追加で選べる項目（所要時間・料金は基本に加算）。" />
+          <div className="divide-y divide-line">
+            {options.map((o) => (
+              <div key={o.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div>
+                  <span className="font-medium text-ink">{o.name}</span>
+                  <span className="ml-2 text-sm text-muted">
+                    +{o.durationMinutes}分{o.price != null ? ` / +¥${o.price.toLocaleString()}` : ""}
+                  </span>
+                </div>
+                <form action={removeReservationMenu.bind(null, o.id, id)}>
+                  <button type="submit" className="rounded p-1 text-muted hover:bg-danger-bg hover:text-danger" title="削除">
+                    <Trash2 className="size-4" />
+                  </button>
+                </form>
+              </div>
+            ))}
+            {options.length === 0 && <p className="px-5 py-6 text-center text-sm text-muted">オプションはありません。基本メニューに加えたい項目を下から追加できます。</p>}
+          </div>
+          <form action={addReservationOption.bind(null, id)} className="flex flex-wrap items-end gap-3 border-t border-line p-5">
+            <FormField label="オプション名" htmlFor="oName" required className="min-w-40 flex-1">
+              <Input id="oName" name="name" placeholder="シャンプー" required />
+            </FormField>
+            <FormField label="追加時間(分)" htmlFor="oDuration" hint="0でも可">
+              <Input id="oDuration" name="durationMinutes" type="number" min={0} step={5} defaultValue={15} />
+            </FormField>
+            <FormField label="追加料金(円・任意)" htmlFor="oPrice">
+              <Input id="oPrice" name="price" type="number" min={0} placeholder="1000" />
+            </FormField>
+            <Button type="submit" variant="outline" size="md">
+              <Plus className="size-4" />
+              追加
+            </Button>
+          </form>
+        </Card>
+      )}
+
       {/* 予約表 */}
       <Card className="mb-5">
         <CardHeader title="予約一覧" description={`${rows.length}件`} />
@@ -199,7 +240,14 @@ export default async function ReservationDetailPage({ params }: { params: Promis
                       {r.friendName}
                       {r.phone && <span className="ml-1 text-xs text-muted">({r.phone})</span>}
                     </td>
-                    {page.type === "menu" && <td className="px-5 py-3 text-muted">{r.menuName ?? "—"}</td>}
+                    {page.type === "menu" && (
+                      <td className="px-5 py-3 text-muted">
+                        {r.menuName ?? "—"}
+                        {r.optionNames.length > 0 && (
+                          <span className="block text-xs text-faint">＋{r.optionNames.join("、")}</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-5 py-3">
                       <Badge tone={STATUS[r.status]?.tone ?? "neutral"}>{STATUS[r.status]?.label ?? r.status}</Badge>
                     </td>

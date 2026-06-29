@@ -16,7 +16,10 @@ export async function listReservationPages(): Promise<ReservationPageRow[]> {
   ]);
   const now = Date.now();
   const menuCount = new Map<string, number>();
-  for (const m of menus) menuCount.set(m.reservationPageId, (menuCount.get(m.reservationPageId) ?? 0) + 1);
+  for (const m of menus) {
+    if (m.kind === "option") continue; // 基本メニューのみ数える
+    menuCount.set(m.reservationPageId, (menuCount.get(m.reservationPageId) ?? 0) + 1);
+  }
   const upcoming = new Map<string, number>();
   for (const r of reservations) {
     if (r.status === "confirmed" && new Date(r.startAt).getTime() >= now) {
@@ -35,21 +38,27 @@ export async function listReservationPages(): Promise<ReservationPageRow[]> {
 export interface ReservationPageDetail {
   page: ReservationPage;
   menus: ReservationMenu[];
+  options: ReservationMenu[];
 }
 
 export async function getReservationPage(id: string): Promise<ReservationPageDetail | null> {
   const db = getDataProvider();
   const page = await db.reservationPages.get(id);
   if (!page) return null;
-  const menus = (await db.reservationMenus.list())
+  const all = (await db.reservationMenus.list())
     .filter((m) => m.reservationPageId === id)
     .sort((a, b) => a.order - b.order);
-  return { page, menus };
+  return {
+    page,
+    menus: all.filter((m) => m.kind !== "option"),
+    options: all.filter((m) => m.kind === "option"),
+  };
 }
 
 export interface ReservationRow extends Reservation {
   friendName: string;
   menuName?: string;
+  optionNames: string[];
 }
 
 /** 管理用：予約表の予約一覧（新しい開始日時順）。 */
@@ -69,22 +78,27 @@ export async function getPageReservations(id: string): Promise<ReservationRow[]>
       ...r,
       friendName: r.friendId ? (friendName.get(r.friendId) ?? "—") : (r.name || "—"),
       menuName: r.menuId ? menuName.get(r.menuId) : undefined,
+      optionNames: (r.optionIds ?? []).map((oid) => menuName.get(oid)).filter((n): n is string => !!n),
     }));
 }
 
 export interface BookingView {
   page: ReservationPage;
   menus: ReservationMenu[];
+  options: ReservationMenu[];
   days: DayOption[];
   selectedMenu?: ReservationMenu;
+  selectedOptions: ReservationMenu[];
+  totalDuration: number;
+  totalPrice?: number;
   selectedDate?: string;
   slots: SlotOption[];
 }
 
-/** 公開予約ページ用：メニュー一覧・予約可能日・選択日の枠を計算。 */
+/** 公開予約ページ用：メニュー・オプション・予約可能日・選択日の枠を計算。 */
 export async function getBookingView(
   id: string,
-  opts: { date?: string; menuId?: string } = {}
+  opts: { date?: string; menuId?: string; optionIds?: string[] } = {}
 ): Promise<BookingView | null> {
   const db = getDataProvider();
   const page = await db.reservationPages.get(id);
@@ -93,13 +107,26 @@ export async function getBookingView(
     db.reservationMenus.list(),
     db.reservations.list(),
   ]);
-  const menus = allMenus
+  const pageMenus = allMenus
     .filter((m) => m.reservationPageId === id)
     .sort((a, b) => a.order - b.order);
+  const menus = pageMenus.filter((m) => m.kind !== "option");
+  const options = pageMenus.filter((m) => m.kind === "option");
   const days = dayOptions(page);
+
   const selectedMenu = opts.menuId ? menus.find((m) => m.id === opts.menuId) : undefined;
-  const durationMin =
+  const selectedOptions = (opts.optionIds ?? [])
+    .map((oid) => options.find((o) => o.id === oid))
+    .filter((o): o is ReservationMenu => !!o);
+
+  // 合計所要時間・料金（基本メニュー＋オプション）
+  const baseDuration =
     page.type === "menu" ? (selectedMenu?.durationMinutes ?? page.durationMinutes) : page.durationMinutes;
+  const totalDuration = baseDuration + selectedOptions.reduce((s, o) => s + o.durationMinutes, 0);
+  const priceParts = [selectedMenu?.price, ...selectedOptions.map((o) => o.price)].filter(
+    (p): p is number => typeof p === "number"
+  );
+  const totalPrice = priceParts.length ? priceParts.reduce((s, p) => s + p, 0) : undefined;
 
   let slots: SlotOption[] = [];
   const selectedDate = opts.date && days.some((d) => d.value === opts.date) ? opts.date : undefined;
@@ -107,9 +134,9 @@ export async function getBookingView(
   const ready = page.type === "simple" || !!selectedMenu;
   if (selectedDate && ready) {
     const dayRes = reservations.filter((r) => r.reservationPageId === id);
-    slots = daySlots(page, selectedDate, durationMin, dayRes);
+    slots = daySlots(page, selectedDate, totalDuration, dayRes);
   }
-  return { page, menus, days, selectedMenu, selectedDate, slots };
+  return { page, menus, options, days, selectedMenu, selectedOptions, totalDuration, totalPrice, selectedDate, slots };
 }
 
 export interface FriendReservation {

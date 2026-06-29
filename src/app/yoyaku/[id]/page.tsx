@@ -14,21 +14,24 @@ export default async function PublicBookingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ u?: string; menu?: string; date?: string; submitted?: string; error?: string }>;
+  searchParams: Promise<{ u?: string; menu?: string; date?: string; opt?: string | string[]; submitted?: string; error?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const view = await getBookingView(id, { date: sp.date, menuId: sp.menu });
+  const optionIds = Array.isArray(sp.opt) ? sp.opt : sp.opt ? [sp.opt] : [];
+  const view = await getBookingView(id, { date: sp.date, menuId: sp.menu, optionIds });
   if (!view) notFound();
-  const { page, menus, days, selectedMenu, selectedDate, slots } = view;
+  const { page, menus, options, days, selectedMenu, selectedOptions, totalDuration, totalPrice, selectedDate, slots } = view;
   const u = sp.u;
 
-  const qs = (extra: Record<string, string | undefined>) => {
+  // menu/date 切替リンク。選択中のオプションも引き継ぐ（opts で上書き可、menu:null で先頭=メニュー選択へ戻す）
+  const qs = (extra: { menu?: string | null; date?: string; opts?: string[] } = {}) => {
     const p = new URLSearchParams();
     if (u) p.set("u", u);
-    if (extra.menu ?? (page.type === "menu" ? selectedMenu?.id : undefined))
-      p.set("menu", extra.menu ?? selectedMenu!.id);
+    const menuVal = extra.menu === null ? undefined : (extra.menu ?? (page.type === "menu" ? selectedMenu?.id : undefined));
+    if (menuVal) p.set("menu", menuVal);
     if (extra.date) p.set("date", extra.date);
+    for (const o of extra.opts ?? selectedOptions.map((s) => s.id)) p.append("opt", o);
     return `/yoyaku/${id}${p.toString() ? `?${p.toString()}` : ""}`;
   };
 
@@ -87,9 +90,50 @@ export default async function PublicBookingPage({
                 {selectedMenu && (
                   <p className="mt-4 text-sm text-muted">
                     メニュー：<span className="font-medium text-ink">{selectedMenu.name}</span>（{selectedMenu.durationMinutes}分）{" "}
-                    <Link href={qs({ menu: undefined, date: selectedDate })} className="text-brand hover:underline">
+                    <Link href={`/yoyaku/${id}${u ? `?u=${u}` : ""}`} className="text-brand hover:underline">
                       変更
                     </Link>
+                  </p>
+                )}
+
+                {/* オプション選択（メニュー型・オプションがある場合） */}
+                {page.type === "menu" && selectedMenu && options.length > 0 && (
+                  <form method="get" action={`/yoyaku/${id}`} className="mt-5 rounded-lg border border-line p-4">
+                    {u && <input type="hidden" name="u" value={u} />}
+                    <input type="hidden" name="menu" value={selectedMenu.id} />
+                    {selectedDate && <input type="hidden" name="date" value={selectedDate} />}
+                    <p className="mb-2 text-sm font-medium text-ink">オプション（任意・複数選択可）</p>
+                    <div className="space-y-1.5">
+                      {options.map((o) => (
+                        <label key={o.id} className="flex items-center gap-2 text-sm text-ink">
+                          <input
+                            type="checkbox"
+                            name="opt"
+                            value={o.id}
+                            defaultChecked={selectedOptions.some((s) => s.id === o.id)}
+                            className="accent-[#dd2a7b]"
+                          />
+                          {o.name}
+                          <span className="text-muted">
+                            +{o.durationMinutes}分{o.price != null ? ` / +¥${o.price.toLocaleString()}` : ""}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <button type="submit" className={buttonClasses("outline", "sm", "mt-3")}>
+                      オプションを反映
+                    </button>
+                  </form>
+                )}
+
+                {/* 合計（メニュー＋オプション） */}
+                {selectedMenu && (
+                  <p className="mt-3 text-sm text-ink">
+                    合計：約{totalDuration}分
+                    {totalPrice != null && ` / ¥${totalPrice.toLocaleString()}`}
+                    {selectedOptions.length > 0 && (
+                      <span className="text-muted">（オプション：{selectedOptions.map((o) => o.name).join("、")}）</span>
+                    )}
                   </p>
                 )}
 
@@ -122,6 +166,9 @@ export default async function PublicBookingPage({
                   <form action={createReservation.bind(null, id)} className="mt-5 space-y-4">
                     {u && <input type="hidden" name="u" value={u} />}
                     {selectedMenu && <input type="hidden" name="menuId" value={selectedMenu.id} />}
+                    {selectedOptions.map((o) => (
+                      <input key={o.id} type="hidden" name="optionIds" value={o.id} />
+                    ))}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <FormField label="お名前" htmlFor="name" required>
                         <Input id="name" name="name" required />
