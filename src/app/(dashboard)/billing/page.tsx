@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Form";
 import { Badge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { PLANS, PRICING } from "@/config/plans";
+import { PLANS, PLAN_FEATURES, PRICING, planHasFeature } from "@/config/plans";
+import type { PlanCode } from "@/lib/data/types";
 import {
   cancelSubscription,
   changePlan,
@@ -19,6 +20,10 @@ import type { BillingCustomer, Invoice } from "@/lib/data/types";
 
 const yen = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("ja-JP") : "—");
+
+/** プランに含まれる機能ラベル一覧（準備中は除く）。 */
+const planFeatureLabels = (code: PlanCode) =>
+  PLAN_FEATURES.filter((f) => !f.comingSoon && planHasFeature(code, f.key)).map((f) => f.label);
 
 const STATUS: Record<BillingCustomer["status"], { tone: BadgeTone; label: string }> = {
   active: { tone: "ok", label: "利用中" },
@@ -61,6 +66,9 @@ export default async function BillingPage({
   const showSubscribe = !customer || customer.status === "canceled" || (stripe && !stripeOnboarded);
   // 契約中の管理を出すか
   const showManage = !!customer && customer.status !== "canceled" && (!stripe || stripeOnboarded);
+  // 現在のプラン（解約済みは対象外）。比較表の現在列ハイライト用。
+  const currentPlanCode: PlanCode | undefined =
+    customer && customer.status !== "canceled" ? customer.plan : undefined;
 
   const notice =
     sp.stripe === "success"
@@ -102,6 +110,64 @@ export default async function BillingPage({
         </div>
       )}
 
+      {/* プラン比較（機能の出し分け）。常に表示し、現在のプラン列をハイライト。 */}
+      <Card className="mb-5">
+        <CardHeader title="プラン比較" description="プランごとに使える機能（現在のプランをハイライト）" />
+        <div className="overflow-x-auto p-5">
+          <table className="w-full min-w-[480px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-line">
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-muted">機能</th>
+                {Object.values(PLANS).map((p) => (
+                  <th
+                    key={p.code}
+                    className={`px-3 py-2 text-center text-sm font-semibold ${currentPlanCode === p.code ? "rounded-t-md bg-brand/5 text-brand" : "text-ink"}`}
+                  >
+                    {p.name}
+                    {currentPlanCode === p.code && <span className="ml-1 text-[10px] font-normal">（現在）</span>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-line/60">
+                <td className="px-3 py-2 text-muted">月額（税込）</td>
+                {Object.values(PLANS).map((p) => (
+                  <td key={p.code} className={`px-3 py-2 text-center text-ink ${currentPlanCode === p.code ? "bg-brand/5" : ""}`}>
+                    {yen(p.monthlyFee)}
+                  </td>
+                ))}
+              </tr>
+              <tr className="border-b border-line/60">
+                <td className="px-3 py-2 text-muted">LINE公式アカウント接続</td>
+                {Object.values(PLANS).map((p) => (
+                  <td key={p.code} className={`px-3 py-2 text-center text-ink ${currentPlanCode === p.code ? "bg-brand/5" : ""}`}>
+                    {p.lineLimit}
+                  </td>
+                ))}
+              </tr>
+              {PLAN_FEATURES.map((f) => (
+                <tr key={f.key} className="border-b border-line/60 last:border-0">
+                  <td className="px-3 py-2 text-muted">
+                    {f.label}
+                    {f.comingSoon && <span className="ml-1 text-[10px] text-faint">（準備中）</span>}
+                  </td>
+                  {Object.values(PLANS).map((p) => (
+                    <td key={p.code} className={`px-3 py-2 text-center ${currentPlanCode === p.code ? "bg-brand/5" : ""}`}>
+                      {planHasFeature(p.code, f.key) ? (
+                        <span className="font-semibold text-ok">✓</span>
+                      ) : (
+                        <span className="text-faint">—</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       {/* 現在申込中のプラン（契約があれば常に表示。manageカードを出さない状態でも見えるように） */}
       {customer && customer.status !== "canceled" && !showManage && (
         <Card className="mb-5 p-5">
@@ -113,6 +179,13 @@ export default async function BillingPage({
                 <span className="ml-2 text-sm font-normal text-muted">{yen(planDef?.monthlyFee ?? 0)}/月（税込）</span>
               </p>
               <p className="text-xs text-muted">LINE接続 {planDef?.lineLimit} ／ 次回課金 {fmtDate(customer.nextBillingAt)}</p>
+              {planDef && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {planFeatureLabels(planDef.code).map((l) => (
+                    <Badge key={l} tone="neutral">{l}</Badge>
+                  ))}
+                </div>
+              )}
             </div>
             <Badge tone={STATUS[customer.status].tone}>{STATUS[customer.status].label}</Badge>
           </div>
