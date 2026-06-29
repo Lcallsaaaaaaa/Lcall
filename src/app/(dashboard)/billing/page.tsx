@@ -139,7 +139,7 @@ export default async function BillingPage({
                 ))}
               </tr>
               <tr className="border-b border-line/60">
-                <td className="px-3 py-2 text-muted">LINE公式アカウント接続</td>
+                <td className="px-3 py-2 text-muted">LINE公式アカウント接続（有効数）</td>
                 {Object.values(PLANS).map((p) => (
                   <td key={p.code} className={`px-3 py-2 text-center text-ink ${currentPlanCode === p.code ? "bg-brand/5" : ""}`}>
                     {p.lineLimit}

@@ -39,7 +39,7 @@ export const PLAN_FEATURES: PlanFeatureDef[] = [
 export interface PlanDef {
   code: PlanCode;
   name: string;
-  /** 接続できるLINE公式アカウント数（§10） */
+  /** 接続できるLINE公式アカウント数（有効数の技術的上限・§10） */
   lineLimit: number;
   /** プラン別の月額料金（円） */
   monthlyFee: number;
