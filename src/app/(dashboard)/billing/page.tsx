@@ -168,6 +168,22 @@ export default async function BillingPage({
         </div>
       </Card>
 
+      {/* 大規模改修・カスタム（要相談）。標準3プランの範囲を超える要望向け。 */}
+      <Card className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-semibold text-ink">相談プラン（大規模改修・カスタム開発）</p>
+              <Badge tone="info">要相談</Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              専用機能の開発・外部システム連携・デザイン全面変更・複数店舗の特殊運用など、標準プランの範囲を超えるご要望に個別お見積りで対応します。担当者までお問い合わせください。
+            </p>
+            <p className="mt-1 text-xs text-faint">料金：内容に応じて個別お見積り</p>
+          </div>
+        </div>
+      </Card>
+
       {/* 現在申込中のプラン（契約があれば常に表示。manageカードを出さない状態でも見えるように） */}
       {customer && customer.status !== "canceled" && !showManage && (
         <Card className="mb-5 p-5">
