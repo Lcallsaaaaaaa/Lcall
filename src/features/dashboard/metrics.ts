@@ -12,6 +12,12 @@ export interface DashboardKpis {
   clickRate: number;
   formResponses: number;
   surveyResponses: number;
+  /** 予約の決済売上（支払い済み reservation.amount の合計・累計） */
+  reservationRevenue: number;
+  /** 今月の予約決済売上（支払い済み・作成月が当月） */
+  reservationRevenueMonth: number;
+  /** 支払い済み予約の件数（累計） */
+  paidReservations: number;
 }
 
 export interface LineBreakdownRow {
@@ -39,7 +45,7 @@ const monthKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 /** ダッシュボードの全指標を集計（§5 ダッシュボード表示項目）。 */
 export async function getDashboardData(now: Date = new Date()): Promise<DashboardData> {
   const db = getDataProvider();
-  const [friends, lineAccounts, broadcasts, clickLogs, formResponses, surveyResponses] =
+  const [friends, lineAccounts, broadcasts, clickLogs, formResponses, surveyResponses, reservations] =
     await Promise.all([
       db.friends.list(),
       db.lineAccounts.list(),
@@ -47,6 +53,7 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
       db.clickLogs.list(),
       db.formResponses.list(),
       db.surveyResponses.list(),
+      db.reservations.list(),
     ]);
 
   const todayKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -70,6 +77,17 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
   const deliveries = broadcasts.reduce((s, b) => s + b.sentCount, 0);
   const clicks = clickLogs.length;
 
+  // 予約の決済売上（支払い済みのみ。返金済み・未払いは除外）
+  let reservationRevenue = 0;
+  let reservationRevenueMonth = 0;
+  let paidReservations = 0;
+  for (const r of reservations) {
+    if (r.paymentStatus !== "paid" || typeof r.amount !== "number") continue;
+    reservationRevenue += r.amount;
+    paidReservations++;
+    if (monthKey(new Date(r.createdAt)) === thisMonthKey) reservationRevenueMonth += r.amount;
+  }
+
   const kpis: DashboardKpis = {
     totalFriends: friends.length,
     todayRegistrations,
@@ -79,6 +97,9 @@ export async function getDashboardData(now: Date = new Date()): Promise<Dashboar
     clickRate: deliveries > 0 ? clicks / deliveries : 0,
     formResponses: formResponses.length,
     surveyResponses: surveyResponses.length,
+    reservationRevenue,
+    reservationRevenueMonth,
+    paidReservations,
   };
 
   const lineBreakdown: LineBreakdownRow[] = lineAccounts

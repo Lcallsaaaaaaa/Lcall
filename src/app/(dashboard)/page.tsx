@@ -1,7 +1,9 @@
 import {
   CalendarDays,
+  CalendarCheck,
   ClipboardList,
   FileText,
+  JapaneseYen,
   MousePointerClick,
   Percent,
   Send,
@@ -22,6 +24,7 @@ import { listLineAccounts } from "@/features/line-accounts/queries";
 import { listReservationPages, listUpcomingReservations } from "@/features/reservations/queries";
 
 const fmt = (n: number) => n.toLocaleString("ja-JP");
+const yen = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
 const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
 
 export default async function DashboardPage({
@@ -55,6 +58,27 @@ export default async function DashboardPage({
     { label: "クリック率", value: pct(kpis.clickRate), icon: Percent },
     { label: "フォーム申込数", value: fmt(kpis.formResponses), icon: FileText },
     { label: "アンケート回答数", value: fmt(kpis.surveyResponses), icon: ClipboardList },
+    // 予約決済を使っている場合のみ売上を表示（事前支払いの支払い済み合計）
+    ...(resPages.length > 0
+      ? [
+          {
+            label: "予約売上（今月）",
+            value: yen(kpis.reservationRevenueMonth),
+            icon: JapaneseYen,
+            important: true,
+          },
+          {
+            label: "予約売上（累計）",
+            value: yen(kpis.reservationRevenue),
+            icon: JapaneseYen,
+          },
+          {
+            label: "決済済み予約数",
+            value: fmt(kpis.paidReservations),
+            icon: CalendarCheck,
+          },
+        ]
+      : []),
   ];
 
   return (
