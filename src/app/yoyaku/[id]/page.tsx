@@ -7,6 +7,7 @@ import { GradientLogo } from "@/components/ui/GradientLogo";
 import { createReservation } from "@/features/reservations/actions";
 import { getBookingView } from "@/features/reservations/queries";
 import { listLineAccounts } from "@/features/line-accounts/queries";
+import { SlotButtons } from "@/components/features/SlotButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -218,28 +219,7 @@ export default async function PublicBookingPage({
                         ※この予約は事前のオンライン決済（カード）が必要です。時間を選ぶと決済画面に進みます。
                       </p>
                     )}
-                    {slots.length === 0 ? (
-                      <p className="text-sm text-muted">この日の予約枠がありません。</p>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                        {slots.map((s) => (
-                          <button
-                            key={s.startISO}
-                            type="submit"
-                            name="startISO"
-                            value={s.startISO}
-                            disabled={!s.available}
-                            className={
-                              s.available
-                                ? "rounded-lg border border-brand/40 bg-brand/5 px-2 py-2 text-sm font-medium text-ink transition hover:bg-brand hover:text-white"
-                                : "cursor-not-allowed rounded-lg border border-line px-2 py-2 text-sm text-faint line-through"
-                            }
-                          >
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    <SlotButtons slots={slots} />
                   </form>
                 )}
               </>

@@ -213,6 +213,19 @@ export async function createReservation(pageId: string, formData: FormData) {
     options.reduce((s, o) => s + o.durationMinutes, 0);
   const endMs = start.getTime() + durationMin * 60000;
 
+  // 二重送信ガード：同じ友だちが同じ枠を既に予約済みなら「満枠」ではなく成功扱いにする
+  // （枠ボタン連打で2回目に自分の予約が満枠判定され「満枠になりました」と出る問題の対策）
+  if (friendId) {
+    const existing = (await db.reservations.list()).find(
+      (r) =>
+        r.reservationPageId === pageId &&
+        r.friendId === friendId &&
+        (r.status === "confirmed" || r.status === "pending") &&
+        new Date(r.startAt).getTime() === start.getTime()
+    );
+    if (existing) redirect(`/yoyaku/${pageId}?submitted=1${friend ? "" : "&join=1"}`);
+  }
+
   // 定員の最終チェック（確定＋支払い待ち仮押さえ で満枠を防ぐ）
   const holdCutoff = Date.now() - 30 * 60 * 1000;
   const overlap = (await db.reservations.list()).filter(

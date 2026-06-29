@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { GradientLogo } from "@/components/ui/GradientLogo";
 import { rescheduleReservation } from "@/features/reservations/actions";
 import { getChangeView } from "@/features/reservations/queries";
+import { SlotButtons } from "@/components/features/SlotButtons";
 
 export const dynamic = "force-dynamic";
 
@@ -110,28 +111,7 @@ export default async function ChangeReservationPage({
           <input type="hidden" name="r" value={sp.r ?? ""} />
           <input type="hidden" name="t" value={sp.t ?? ""} />
           <p className="mb-2 text-sm font-medium text-ink">新しい時間を選んで変更</p>
-          {slots.length === 0 ? (
-            <p className="text-sm text-muted">この日の空き枠がありません。</p>
-          ) : (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {slots.map((s) => (
-                <button
-                  key={s.startISO}
-                  type="submit"
-                  name="startISO"
-                  value={s.startISO}
-                  disabled={!s.available}
-                  className={
-                    s.available
-                      ? "rounded-lg border border-brand/40 bg-brand/5 px-2 py-2 text-sm font-medium text-ink transition hover:bg-brand hover:text-white"
-                      : "cursor-not-allowed rounded-lg border border-line px-2 py-2 text-sm text-faint line-through"
-                  }
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <SlotButtons slots={slots} />
         </form>
       )}
     </Box>
