@@ -178,5 +178,43 @@ export async function GET(
     return csvResponse("survey-responses.csv", csv);
   }
 
+  if (dataset === "reservations") {
+    const pageId = url.searchParams.get("pageId");
+    const [reservations, friends, menus] = await Promise.all([
+      db.reservations.list(),
+      db.friends.list(),
+      db.reservationMenus.list(),
+    ]);
+    const fname = new Map(friends.map((f) => [f.id, f.displayName]));
+    const mname = new Map(menus.map((m) => [m.id, m.name]));
+    const statusLabel: Record<string, string> = {
+      pending: "支払い待ち",
+      confirmed: "予約中",
+      done: "来店済",
+      cancelled: "キャンセル",
+      noshow: "来店なし",
+    };
+    const payLabel: Record<string, string> = { unpaid: "未払い", paid: "支払い済", refunded: "返金済" };
+    const rows = reservations
+      .filter((r) => !pageId || r.reservationPageId === pageId)
+      .sort((a, b) => (a.startAt < b.startAt ? 1 : -1))
+      .map((r) => [
+        fmtDt(r.startAt),
+        r.friendId ? (fname.get(r.friendId) ?? "") : (r.name ?? ""),
+        r.phone ?? "",
+        r.menuId ? (mname.get(r.menuId) ?? "") : "",
+        (r.optionIds ?? []).map((o) => mname.get(o)).filter(Boolean).join("、"),
+        statusLabel[r.status] ?? r.status,
+        r.paymentStatus ? (payLabel[r.paymentStatus] ?? r.paymentStatus) : "",
+        r.amount ?? "",
+        r.note ?? "",
+        fmtDt(r.createdAt),
+      ]);
+    return csvResponse(
+      "reservations.csv",
+      toCsv(["予約日時", "顧客", "電話", "メニュー", "オプション", "状態", "支払い", "金額", "ご要望", "作成日時"], rows)
+    );
+  }
+
   return new Response("not found", { status: 404 });
 }

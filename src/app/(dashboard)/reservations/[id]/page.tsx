@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -259,7 +259,13 @@ export default async function ReservationDetailPage({ params }: { params: Promis
 
       {/* 予約表 */}
       <Card className="mb-5">
-        <CardHeader title="予約一覧" description={`${rows.length}件`} />
+        <div className="flex items-center justify-between gap-3 pr-5">
+          <CardHeader title="予約一覧" description={`${rows.length}件`} />
+          <a href={`/api/export/reservations?pageId=${id}`} className={buttonClasses("outline", "sm")}>
+            <Download className="size-4" />
+            CSV出力
+          </a>
+        </div>
         {rows.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted">まだ予約がありません。</p>
         ) : (
