@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Form";
 import { Badge, type BadgeTone } from "@/components/ui/StatusBadge";
-import { PLANS, PLAN_FEATURES, PRICING, planHasFeature } from "@/config/plans";
+import { ADDONS, PLANS, PLAN_FEATURES, PRICING, planHasFeature } from "@/config/plans";
 import type { PlanCode } from "@/lib/data/types";
 import {
   cancelSubscription,
@@ -165,6 +165,28 @@ export default async function BillingPage({
               ))}
             </tbody>
           </table>
+        </div>
+      </Card>
+
+      {/* 任意オプション（基本プランへの追加）。 */}
+      <Card className="mb-5">
+        <CardHeader title="オプション（任意）" description="基本プランに追加できます" />
+        <div className="p-2">
+          {ADDONS.map((a) => (
+            <div
+              key={a.key}
+              className="flex items-start justify-between gap-3 border-b border-line px-3 py-3 last:border-0"
+            >
+              <div>
+                <p className="text-sm font-medium text-ink">{a.label}</p>
+                {a.description && <p className="mt-0.5 text-xs text-muted">{a.description}</p>}
+              </div>
+              <p className="shrink-0 text-sm font-semibold text-ink">
+                {yen(a.amount)}
+                <span className="text-xs font-normal text-muted">{a.recurring ? "/月" : "（一回）"}</span>
+              </p>
+            </div>
+          ))}
         </div>
       </Card>
 
