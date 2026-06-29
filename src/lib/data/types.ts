@@ -458,6 +458,10 @@ export interface ReservationPage {
   autoTagId?: ID;
   /** 予約確定LINEメッセージ（{{name}} 使用可。空ならデフォルト文） */
   confirmText?: string;
+  /** 予約発生/キャンセル時の通知先メール（任意・メール送信設定が必要） */
+  notifyEmail?: string;
+  /** 予約発生/キャンセル時にLINE通知する対象タグ（このタグを持つ友だち＝オーナー/スタッフ等へ通知） */
+  notifyTagId?: ID;
   createdAt: ISODate;
 }
 

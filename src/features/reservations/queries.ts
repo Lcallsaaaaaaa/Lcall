@@ -139,6 +139,35 @@ export async function getBookingView(
   return { page, menus, options, days, selectedMenu, selectedOptions, totalDuration, totalPrice, selectedDate, slots };
 }
 
+export interface CancelView {
+  page: ReservationPage;
+  reservation: Reservation;
+  menuName?: string;
+  optionNames: string[];
+  valid: boolean;
+}
+
+/** セルフキャンセル画面用：トークン照合つきで予約を取得。 */
+export async function getCancelView(
+  pageId: string,
+  rid: string,
+  token: string
+): Promise<CancelView | null> {
+  const db = getDataProvider();
+  const [page, reservation, menus] = await Promise.all([
+    db.reservationPages.get(pageId),
+    rid ? db.reservations.get(rid) : Promise.resolve(null),
+    db.reservationMenus.list(),
+  ]);
+  if (!page || !reservation || reservation.reservationPageId !== pageId) return null;
+  const valid = !!reservation.cancelToken && reservation.cancelToken === token;
+  const menuName = reservation.menuId ? menus.find((m) => m.id === reservation.menuId)?.name : undefined;
+  const optionNames = (reservation.optionIds ?? [])
+    .map((o) => menus.find((m) => m.id === o)?.name)
+    .filter((n): n is string => !!n);
+  return { page, reservation, menuName, optionNames, valid };
+}
+
 export interface FriendReservation {
   id: string;
   pageTitle: string;

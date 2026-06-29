@@ -6,7 +6,9 @@ import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import type { Reservation, ReservationType } from "@/lib/data/types";
 import { isRealToken, pushText } from "@/lib/line";
+import { publicBaseUrl } from "@/lib/url";
 import { applyNameVars } from "@/lib/vars";
+import { notifyReservation } from "./notify";
 
 function str(v: FormDataEntryValue | null): string {
   return (v == null ? "" : String(v)).trim();
@@ -71,6 +73,8 @@ export async function updateReservationPage(id: string, formData: FormData) {
     daysAhead: Math.max(1, num(formData.get("daysAhead"), 30)),
     autoTagId: str(formData.get("autoTagId")) || undefined,
     confirmText: str(formData.get("confirmText")) || undefined,
+    notifyEmail: str(formData.get("notifyEmail")) || undefined,
+    notifyTagId: str(formData.get("notifyTagId")) || undefined,
   });
   revalidatePath(`/reservations/${id}`);
 }
@@ -181,6 +185,7 @@ export async function createReservation(pageId: string, formData: FormData) {
   if (overlap >= page.capacity) redirect(`/yoyaku/${pageId}?error=full`);
 
   const id = uid("rv");
+  const cancelToken = Math.random().toString(36).slice(2, 12);
   await db.reservations.create({
     id,
     reservationPageId: pageId,
@@ -193,7 +198,7 @@ export async function createReservation(pageId: string, formData: FormData) {
     name: str(formData.get("name")) || undefined,
     phone: str(formData.get("phone")) || undefined,
     note: str(formData.get("note")) || undefined,
-    cancelToken: Math.random().toString(36).slice(2, 12),
+    cancelToken,
     createdAt: new Date().toISOString(),
   });
 
@@ -211,6 +216,10 @@ export async function createReservation(pageId: string, formData: FormData) {
     }
   }
 
+  // 取消リンク（本人セルフキャンセル用）。公開URL基底はリクエストから導出。
+  const base = await publicBaseUrl();
+  const cancelUrl = base ? `${base}/yoyaku/${pageId}/cancel?r=${id}&t=${cancelToken}` : "";
+
   // LINE 予約確定メッセージ（実トークン時のみ送信）
   if (friendId) {
     const friend = await db.friends.get(friendId);
@@ -222,10 +231,34 @@ export async function createReservation(pageId: string, formData: FormData) {
       const lines = [head, `日時：${fmtJa(start.toISOString())}`];
       if (menu) lines.push(`メニュー：${menu.name}`);
       if (options.length) lines.push(`オプション：${options.map((o) => o.name).join("、")}`);
+      if (cancelUrl) lines.push(`\nご予約の確認・キャンセルはこちら：\n${cancelUrl}`);
       await pushText(account.channelAccessToken, friend.lineUserId, lines.join("\n"));
     }
   }
 
+  // 店舗側へ通知（指定タグの友だちへLINE＋指定メール）
+  const created = await db.reservations.get(id);
+  if (created) await notifyReservation(db, created, "created");
+
   revalidatePath(`/reservations/${pageId}`);
   redirect(`/yoyaku/${pageId}?submitted=1`);
+}
+
+/** 公開：本人によるキャンセル（取消トークン必須・認証不要）。 */
+export async function cancelReservationPublic(pageId: string, formData: FormData) {
+  const db = getDataProvider();
+  const rid = str(formData.get("r"));
+  const token = str(formData.get("t"));
+  const r = rid ? await db.reservations.get(rid) : null;
+  // トークン不一致・別ページ・予約なしは無効（成功画面には遷移させない）
+  if (!r || r.reservationPageId !== pageId || !r.cancelToken || r.cancelToken !== token) {
+    redirect(`/yoyaku/${pageId}/cancel?r=${rid}&t=${token}&error=invalid`);
+  }
+  if (r.status === "confirmed") {
+    await db.reservations.update(r.id, { status: "cancelled" });
+    const updated = await db.reservations.get(r.id);
+    if (updated) await notifyReservation(db, updated, "cancelled");
+    revalidatePath(`/reservations/${pageId}`);
+  }
+  redirect(`/yoyaku/${pageId}/cancel?r=${rid}&t=${token}&done=1`);
 }

@@ -131,6 +131,25 @@ export default async function ReservationDetailPage({ params }: { params: Promis
           <FormField label="予約確定メッセージ（任意・{{name}}使用可）" htmlFor="confirmText" hint="空ならデフォルト文。LINEで送信されます。">
             <Textarea id="confirmText" name="confirmText" defaultValue={page.confirmText} placeholder="{{name}}様、ご予約ありがとうございます。" />
           </FormField>
+
+          <div className="rounded-lg border border-line bg-surface-2/40 p-4">
+            <p className="text-sm font-medium text-ink">予約・キャンセルの通知先（店舗側）</p>
+            <p className="mt-0.5 text-xs text-muted">予約が入った時・キャンセルされた時に、下記へ通知します。</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FormField label="通知するLINEタグ" htmlFor="notifyTagId" hint="このタグを付けた友だち（オーナー/スタッフ等）へLINE通知">
+                <Select id="notifyTagId" name="notifyTagId" defaultValue={page.notifyTagId ?? ""}>
+                  <option value="">通知しない</option>
+                  {tags.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label="通知先メール（任意）" htmlFor="notifyEmail" hint="メール送信設定があるとき送信">
+                <Input id="notifyEmail" name="notifyEmail" type="email" defaultValue={page.notifyEmail} placeholder="owner@example.com" />
+              </FormField>
+            </div>
+          </div>
+
           <div className="flex justify-end">
             <Button type="submit" variant="solid" size="md">保存</Button>
           </div>

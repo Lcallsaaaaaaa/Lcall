@@ -55,6 +55,10 @@ export async function processReservationReminders(
       `日時：${fmtJa(r.startAt)}`,
     ];
     if (menu) lines.push(`メニュー：${menu.name}`);
+    const base = process.env.LCALL_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "");
+    if (base && r.cancelToken) {
+      lines.push(`\nご予約の確認・キャンセルはこちら：\n${base}/yoyaku/${r.reservationPageId}/cancel?r=${r.id}&t=${r.cancelToken}`);
+    }
     await pushText(acc.channelAccessToken, friend.lineUserId, lines.join("\n"));
     reminded++;
   }
