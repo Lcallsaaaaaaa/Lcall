@@ -610,6 +610,11 @@ export interface ClientAccount {
   contactEmail: string;
   plan: PlanCode;
   status: "trial" | "active" | "suspended" | "canceled";
+  /**
+   * 申込時に採番された Stripe 顧客ID（cus_…）。納品前の支払い情報と
+   * 各インスタンスの BillingCustomer を結ぶ鍵。カード番号自体は保持しない（Stripe保管）。
+   */
+  stripeCustomerId?: string;
   /** 獲得元アフィリエイト（設計のみ・任意） */
   affiliateId?: ID;
   /** 納品チェックリストの完了ステップキー（config/delivery-steps の key） */

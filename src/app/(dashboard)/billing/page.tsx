@@ -15,6 +15,7 @@ import {
   simulatePaymentFailure,
   subscribePlan,
 } from "@/features/billing/actions";
+import { ensurePrepaidBillingCustomer } from "@/features/billing/ensure";
 import { getBilling } from "@/features/billing/queries";
 import type { BillingCustomer, Invoice } from "@/lib/data/types";
 
@@ -44,6 +45,8 @@ export default async function BillingPage({
   searchParams: Promise<{ stripe?: string; msg?: string }>;
 }) {
   const sp = await searchParams;
+  // 納品前にStripeで採番した顧客ID（env）を初回に BillingCustomer へ引き継ぐ（冪等）。
+  await ensurePrepaidBillingCustomer();
   const {
     customer,
     planDef,

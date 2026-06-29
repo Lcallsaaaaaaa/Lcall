@@ -48,6 +48,13 @@ export default function NewClientPage() {
               <Input id="baseUrl" name="baseUrl" placeholder="https://acme.example.com" />
             </FormField>
           </div>
+          <FormField
+            label="Stripe顧客ID（任意・cus_…）"
+            htmlFor="stripeCustomerId"
+            hint="申込時の支払いでStripeが採番した顧客ID。納品インスタンスの請求と紐づく（カード番号は保持しない）"
+          >
+            <Input id="stripeCustomerId" name="stripeCustomerId" placeholder="cus_xxxxxxxxxxxx" />
+          </FormField>
           <FormField label="ホスティングのメモ（任意）" htmlFor="hostingNote">
             <Input id="hostingNote" name="hostingNote" placeholder="例：Render Starter / Tokyo" />
           </FormField>

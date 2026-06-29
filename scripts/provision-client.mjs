@@ -89,6 +89,10 @@ LCALL_ADMIN_PASSWORD_HASH=${passHash}
 # GOOGLE_REDIRECT_URI=${baseUrl}/api/auth/google/callback
 # クリック計測（このクライアント用Workerを立てたらそのURL）
 TRACKING_BASE_URL=
+# --- 契約・請求（システム料）。申込時にStripeで採番した顧客IDを引き継ぐと、
+#     納品前の支払いと、このインスタンスの請求(BillingCustomer)が同一顧客として紐づく ---
+LCALL_BILLING_CUSTOMER_ID=
+LCALL_BILLING_PLAN=
 # --- クライアントごとに値を貼る（任意） ---
 ANTHROPIC_API_KEY=
 STRIPE_SECRET_KEY=

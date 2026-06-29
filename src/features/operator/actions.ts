@@ -54,6 +54,7 @@ export async function createClient(formData: FormData) {
     contactEmail: str(formData.get("contactEmail")),
     plan: parsePlan(formData.get("plan")),
     status: "trial",
+    stripeCustomerId: str(formData.get("stripeCustomerId")) || undefined,
     notes: str(formData.get("notes")) || undefined,
     createdAt: now,
   });
@@ -82,6 +83,7 @@ export async function updateClient(id: string, formData: FormData) {
     contactEmail: str(formData.get("contactEmail")),
     plan: parsePlan(formData.get("plan")),
     status: parseStatus(formData.get("status")),
+    stripeCustomerId: str(formData.get("stripeCustomerId")) || undefined,
     notes: str(formData.get("notes")) || undefined,
   });
   const instances = await db.clientInstances.list();

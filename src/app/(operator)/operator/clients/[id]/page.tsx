@@ -240,6 +240,14 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                 <option value="canceled">解約</option>
               </Select>
             </FormField>
+            <FormField
+              label="Stripe顧客ID（cus_…）"
+              htmlFor="stripeCustomerId"
+              className="sm:col-span-2"
+              hint="申込時の支払い情報（カードはStripe保管）と納品インスタンスの請求を結ぶ鍵"
+            >
+              <Input id="stripeCustomerId" name="stripeCustomerId" defaultValue={client.stripeCustomerId ?? ""} placeholder="cus_xxxxxxxxxxxx" />
+            </FormField>
             <FormField label="公開URL" htmlFor="baseUrl" className="sm:col-span-2">
               <Input id="baseUrl" name="baseUrl" defaultValue={instance?.baseUrl ?? ""} placeholder="https://..." />
             </FormField>
