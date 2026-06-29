@@ -13,20 +13,33 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { LineBreakdown } from "@/components/charts/LineBreakdown";
 import { RegistrationTrend } from "@/components/charts/RegistrationTrend";
+import { ReservationAgenda } from "@/components/features/ReservationAgenda";
 import { buttonClasses } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { getDashboardData } from "@/features/dashboard/metrics";
+import { listLineAccounts } from "@/features/line-accounts/queries";
+import { listReservationPages, listUpcomingReservations } from "@/features/reservations/queries";
 
 const fmt = (n: number) => n.toLocaleString("ja-JP");
 const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ resAcc?: string }>;
+}) {
   // チャット対応(staff)はダッシュボードを持たない＝受信箱へ。
   const user = await getSession();
   if (user?.role === "staff") redirect("/inbox");
 
-  const { kpis, lineBreakdown, trend } = await getDashboardData();
+  const { resAcc } = await searchParams;
+  const [{ kpis, lineBreakdown, trend }, resPages, accounts, upcoming] = await Promise.all([
+    getDashboardData(),
+    listReservationPages(),
+    listLineAccounts(),
+    listUpcomingReservations({ lineAccountId: resAcc || undefined }),
+  ]);
 
   const cards = [
     { label: "総LINE登録者数", value: fmt(kpis.totalFriends), icon: Users, important: true },
@@ -85,6 +98,43 @@ export default async function DashboardPage() {
           </div>
         </Card>
       </section>
+
+      {resPages.length > 0 && (
+        <section className="mt-6">
+          <Card>
+            <CardHeader title="今週の予約" description="今後7日間の確定予約" />
+            <div className="space-y-3 p-5">
+              {accounts.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/"
+                    className={`rounded-lg px-3 py-1.5 text-sm ${!resAcc ? "bg-brand font-medium text-white" : "border border-line text-ink hover:bg-surface-2"}`}
+                  >
+                    すべて
+                  </Link>
+                  {accounts.map((a) => (
+                    <Link
+                      key={a.id}
+                      href={`/?resAcc=${a.id}`}
+                      className={`rounded-lg px-3 py-1.5 text-sm ${resAcc === a.id ? "bg-brand font-medium text-white" : "border border-line text-ink hover:bg-surface-2"}`}
+                    >
+                      {a.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+              <ReservationAgenda
+                items={upcoming.map((r) => ({
+                  id: r.id,
+                  startAt: r.startAt,
+                  title: r.friendName,
+                  sub: [r.pageTitle, r.menuName].filter(Boolean).join("・"),
+                }))}
+              />
+            </div>
+          </Card>
+        </section>
+      )}
     </div>
   );
 }

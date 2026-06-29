@@ -13,6 +13,7 @@ import {
   setReservationStatus,
   updateReservationPage,
 } from "@/features/reservations/actions";
+import { ReservationAgenda } from "@/components/features/ReservationAgenda";
 import { getPageReservations, getReservationPage } from "@/features/reservations/queries";
 import { listLineAccounts } from "@/features/line-accounts/queries";
 import { listTags } from "@/features/tags/queries";
@@ -256,6 +257,26 @@ export default async function ReservationDetailPage({ params }: { params: Promis
           </form>
         </Card>
       )}
+
+      {/* カレンダー（今後7日間） */}
+      <Card className="mb-5">
+        <CardHeader title="予定（カレンダー・今後7日間）" />
+        <div className="p-5">
+          <ReservationAgenda
+            items={rows
+              .filter((r) => {
+                const t = new Date(r.startAt).getTime();
+                return (r.status === "confirmed" || r.status === "pending") && t >= Date.now() && t <= Date.now() + 7 * 86400000;
+              })
+              .map((r) => ({
+                id: r.id,
+                startAt: r.startAt,
+                title: r.friendName,
+                sub: [r.menuName, STATUS[r.status]?.label].filter(Boolean).join("・"),
+              }))}
+          />
+        </div>
+      </Card>
 
       {/* 予約表 */}
       <Card className="mb-5">

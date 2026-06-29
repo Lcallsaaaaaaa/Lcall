@@ -139,6 +139,54 @@ export async function getBookingView(
   return { page, menus, options, days, selectedMenu, selectedOptions, totalDuration, totalPrice, selectedDate, slots };
 }
 
+export interface UpcomingReservation {
+  id: string;
+  startAt: string;
+  friendName: string;
+  menuName?: string;
+  pageTitle: string;
+  lineAccountId?: string;
+  status: Reservation["status"];
+}
+
+/** 今後N日（既定7日）の確定予約を全予約ページ横断で取得。公式アカウントで絞り込み可（ダッシュボード/カレンダー用）。 */
+export async function listUpcomingReservations(
+  opts: { lineAccountId?: string; days?: number } = {}
+): Promise<UpcomingReservation[]> {
+  const db = getDataProvider();
+  const [reservations, friends, menus, pages] = await Promise.all([
+    db.reservations.list(),
+    db.friends.list(),
+    db.reservationMenus.list(),
+    db.reservationPages.list(),
+  ]);
+  const now = Date.now();
+  const end = now + (opts.days ?? 7) * 24 * 60 * 60 * 1000;
+  const fname = new Map(friends.map((f) => [f.id, f.displayName]));
+  const mname = new Map(menus.map((m) => [m.id, m.name]));
+  const pageById = new Map(pages.map((p) => [p.id, p]));
+  return reservations
+    .filter((r) => {
+      if (r.status !== "confirmed") return false;
+      const t = new Date(r.startAt).getTime();
+      return t >= now && t <= end;
+    })
+    .map((r) => {
+      const page = pageById.get(r.reservationPageId);
+      return {
+        id: r.id,
+        startAt: r.startAt,
+        friendName: r.friendId ? (fname.get(r.friendId) ?? "—") : (r.name || "—"),
+        menuName: r.menuId ? mname.get(r.menuId) : undefined,
+        pageTitle: page?.title ?? r.reservationPageId,
+        lineAccountId: r.lineAccountId ?? page?.lineAccountId,
+        status: r.status,
+      };
+    })
+    .filter((r) => !opts.lineAccountId || r.lineAccountId === opts.lineAccountId)
+    .sort((a, b) => (a.startAt < b.startAt ? -1 : 1));
+}
+
 export interface CancelView {
   page: ReservationPage;
   reservation: Reservation;
