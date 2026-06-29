@@ -114,6 +114,10 @@ export interface FriendDetail {
   lineAccountName: string;
   /** 予約(Reservation.phone)・フォームtel回答 から拾った電話番号（最新を採用。無ければ undefined） */
   phone?: string;
+  /** フォームのemail項目回答から拾ったメールアドレス（最新を採用。無ければ undefined） */
+  email?: string;
+  /** この友だちの予約決済売上（支払い済み reservation.amount の合計） */
+  reservationRevenue: number;
   tags: FriendTagRef[];
   formHistory: FriendFormHistory[];
   surveyHistory: FriendSurveyHistory[];
@@ -153,6 +157,23 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
   phoneCandidates.sort((a, b) => (a.at < b.at ? 1 : -1));
   const phone = phoneCandidates[0]?.phone;
 
+  // メールアドレス：フォームの email 項目回答から最新を採用
+  const emailFieldIds = new Set(formFields.filter((f) => f.type === "email").map((f) => f.id));
+  const emailCandidates: { email: string; at: string }[] = [];
+  for (const r of formResponses) {
+    if (r.friendId !== id) continue;
+    for (const [k, v] of Object.entries(r.values)) {
+      if (emailFieldIds.has(k) && v) emailCandidates.push({ email: String(v), at: r.createdAt });
+    }
+  }
+  emailCandidates.sort((a, b) => (a.at < b.at ? 1 : -1));
+  const email = emailCandidates[0]?.email;
+
+  // この友だちの予約決済売上（支払い済みのみ。返金・未払いは除外）
+  const reservationRevenue = reservations
+    .filter((r) => r.friendId === id && r.paymentStatus === "paid" && typeof r.amount === "number")
+    .reduce((s, r) => s + (r.amount ?? 0), 0);
+
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const formTitle = new Map(forms.map((f) => [f.id, f.title]));
   const surveyTitle = new Map(surveys.map((s) => [s.id, s.title]));
@@ -181,6 +202,8 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
     friend,
     lineAccountName: accounts.find((a) => a.id === friend.lineAccountId)?.name ?? friend.lineAccountId,
     phone,
+    email,
+    reservationRevenue,
     tags: friendTagRefs,
     formHistory: formResponses
       .filter((r) => r.friendId === id)

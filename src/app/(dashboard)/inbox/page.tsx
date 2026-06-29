@@ -60,6 +60,8 @@ export default async function InboxPage({
   const formHistory = friendDetail?.formHistory ?? [];
   const surveyHistory = friendDetail?.surveyHistory ?? [];
   const friendPhone = friendDetail?.phone;
+  const friendEmail = friendDetail?.email;
+  const friendRevenue = friendDetail?.reservationRevenue ?? 0;
   const RES_STATUS: Record<string, string> = {
     pending: "支払い待ち",
     confirmed: "予約中",
@@ -279,6 +281,10 @@ export default async function InboxPage({
               <dd className="text-ink">{friendPhone ?? "—"}</dd>
             </div>
             <div className="flex justify-between gap-2">
+              <dt className="text-muted">メール</dt>
+              <dd className="truncate text-ink">{friendEmail ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
               <dt className="text-muted">登録LINE</dt>
               <dd className="text-ink">{thread.lineAccountName ?? "—"}</dd>
             </div>
@@ -293,6 +299,10 @@ export default async function InboxPage({
             <div className="flex justify-between gap-2">
               <dt className="text-muted">登録からの日数</dt>
               <dd className="text-ink">{daysSince(thread.friend.registeredAt)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">予約売上</dt>
+              <dd className="text-ink">¥{friendRevenue.toLocaleString()}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-muted">LTV</dt>

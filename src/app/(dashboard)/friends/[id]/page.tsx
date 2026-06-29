@@ -62,7 +62,7 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
   ]);
   if (!detail) notFound();
 
-  const { friend, lineAccountName, phone, tags, formHistory, surveyHistory } = detail;
+  const { friend, lineAccountName, phone, email, reservationRevenue, tags, formHistory, surveyHistory } = detail;
   const assignedIds = new Set(tags.map((t) => t.tag.id));
   const availableTags = allTags.filter((t) => !assignedIds.has(t.id));
 
@@ -89,10 +89,12 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
               <span className="font-mono text-xs">{friend.lineUserId}</span>
             </InfoRow>
             <InfoRow label="電話番号">{phone ?? "—"}</InfoRow>
+            <InfoRow label="メールアドレス">{email ?? "—"}</InfoRow>
             <InfoRow label="登録LINE">{lineAccountName}</InfoRow>
             <InfoRow label="登録日時">{fmtDateTime(friend.registeredAt)}</InfoRow>
             <InfoRow label="登録からの日数">{daysSince(friend.registeredAt)}</InfoRow>
             <InfoRow label="最終クリック">{fmtDateTime(friend.lastClickAt)}</InfoRow>
+            <InfoRow label="予約売上">¥{reservationRevenue.toLocaleString()}</InfoRow>
             <InfoRow label="LTV">¥{friend.ltv.toLocaleString()}</InfoRow>
           </div>
         </Card>
