@@ -8,6 +8,7 @@ import type { Reservation, ReservationPage, ReservationType } from "@/lib/data/t
 import { stripe } from "@/lib/stripe";
 import { publicBaseUrl } from "@/lib/url";
 import { finalizeReservationConfirmed } from "./finalize";
+import { matchFriendByPhone } from "./match";
 import { notifyReservation } from "./notify";
 import { clientStripeSecretKey } from "./payments";
 
@@ -219,8 +220,18 @@ export async function createReservation(pageId: string, formData: FormData) {
   if (!startISO || Number.isNaN(start.getTime()) || start.getTime() <= Date.now()) {
     redirect(`/yoyaku/${pageId}?error=slot`);
   }
-  const friendId = str(formData.get("u")) || undefined;
-  const friend = friendId ? await db.friends.get(friendId) : null;
+  let friendId = str(formData.get("u")) || undefined;
+  let friend = friendId ? await db.friends.get(friendId) : null;
+  const phone = str(formData.get("phone")) || undefined;
+  // ?u が無い（直リンク）予約でも、電話番号が過去の紐づけ済み記録と一致すれば
+  // 既存の友だちへ自動マッチして紐づける（簡易マッチ・誤一致時は紐づけない）。
+  if (!friend && phone) {
+    const matched = await matchFriendByPhone(db, phone, page.lineAccountId);
+    if (matched) {
+      friend = matched;
+      friendId = matched.id;
+    }
+  }
   const menuId = page.type === "menu" ? str(formData.get("menuId")) || undefined : undefined;
   const menu = menuId ? await db.reservationMenus.get(menuId) : null;
   if (page.type === "menu" && (!menu || menu.kind === "option")) redirect(`/yoyaku/${pageId}?error=menu`);
@@ -285,7 +296,7 @@ export async function createReservation(pageId: string, formData: FormData) {
     amount: isPrepay ? amount : undefined,
     optionIds: options.length ? options.map((o) => o.id) : undefined,
     name: str(formData.get("name")) || undefined,
-    phone: str(formData.get("phone")) || undefined,
+    phone,
     note: str(formData.get("note")) || undefined,
     cancelToken,
     createdAt: new Date().toISOString(),
