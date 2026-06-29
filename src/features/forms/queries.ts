@@ -58,6 +58,7 @@ export async function getForm(id: string): Promise<FormWithFields | null> {
 export interface FormResponseRow {
   id: string;
   createdAt: string;
+  friendId?: string;
   friendName: string;
   values: Record<string, string>;
 }
@@ -88,6 +89,7 @@ export async function getFormResponses(id: string): Promise<FormResponsesView | 
       .map((r) => ({
         id: r.id,
         createdAt: r.createdAt,
+        friendId: r.friendId,
         friendName: r.friendId ? (friendName.get(r.friendId) ?? r.friendId) : "—",
         values: r.values,
       })),

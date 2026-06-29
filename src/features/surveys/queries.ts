@@ -109,6 +109,7 @@ export async function getSurveyAnalysis(id: string): Promise<{
 export interface SurveyResponseRow {
   id: string;
   createdAt: string;
+  friendId?: string;
   friendName: string;
   values: Record<string, string | number>;
 }
@@ -136,6 +137,7 @@ export async function getSurveyResponses(id: string): Promise<{
       .map((r) => ({
         id: r.id,
         createdAt: r.createdAt,
+        friendId: r.friendId,
         friendName: r.friendId ? (friendName.get(r.friendId) ?? r.friendId) : "—",
         values: r.values,
       })),

@@ -29,6 +29,13 @@ export async function createForm(formData: FormData) {
   redirect(`/forms/${id}`);
 }
 
+/** 回答に既存のLINE顧客を手動で紐づける（?u 無しで入力された回答の救済）。 */
+export async function linkFormResponseToFriend(responseId: string, formId: string, formData: FormData) {
+  const friendId = str(formData.get("friendId"));
+  if (friendId) await getDataProvider().formResponses.update(responseId, { friendId });
+  revalidatePath(`/forms/${formId}/responses`);
+}
+
 export async function updateForm(id: string, formData: FormData) {
   await getDataProvider().forms.update(id, {
     title: str(formData.get("title")) || "無題のフォーム",
