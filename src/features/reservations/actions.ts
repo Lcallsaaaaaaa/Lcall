@@ -169,6 +169,27 @@ export async function removeReservationMenu(menuId: string, pageId: string) {
   revalidatePath(`/reservations/${pageId}`);
 }
 
+/**
+ * 管理：未紐づけ予約に既存のLINE顧客を手動で紐づける。
+ * `?u=` 無しの公開URLから入った予約（誰の予約か未特定）を、店舗が顧客を選んで結びつける。
+ * 紐づけ時に予約完了LINEを送る（店舗通知は予約時に済のため skip）。
+ */
+export async function linkReservationToFriend(
+  reservationId: string,
+  pageId: string,
+  formData: FormData
+) {
+  await requireOwner();
+  const db = getDataProvider();
+  const friendId = str(formData.get("friendId"));
+  const friend = friendId ? await db.friends.get(friendId) : null;
+  if (friend) {
+    await db.reservations.update(reservationId, { friendId, lineAccountId: friend.lineAccountId });
+    await finalizeReservationConfirmed(db, reservationId, "created", false);
+  }
+  revalidatePath(`/reservations/${pageId}`);
+}
+
 export async function setReservationStatus(
   reservationId: string,
   pageId: string,

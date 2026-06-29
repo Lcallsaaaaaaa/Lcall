@@ -10,10 +10,12 @@ import {
   addReservationOption,
   deleteReservationPage,
   duplicateReservationPage,
+  linkReservationToFriend,
   removeReservationMenu,
   setReservationStatus,
   updateReservationPage,
 } from "@/features/reservations/actions";
+import { getDataProvider } from "@/lib/data/provider";
 import { ReservationMonth } from "@/components/features/ReservationMonth";
 import { getPageReservations, getReservationPage } from "@/features/reservations/queries";
 import { listLineAccounts } from "@/features/line-accounts/queries";
@@ -41,13 +43,15 @@ export default async function ReservationDetailPage({
 }) {
   const { id } = await params;
   const { cal } = await searchParams;
-  const [detail, rows, tags, accounts, base] = await Promise.all([
+  const [detail, rows, tags, accounts, friends, base] = await Promise.all([
     getReservationPage(id),
     getPageReservations(id),
     listTags(),
     listLineAccounts(),
+    getDataProvider().friends.list(),
     publicBaseUrl(),
   ]);
+  const friendOptions = [...friends].sort((a, b) => a.displayName.localeCompare(b.displayName, "ja"));
   if (!detail) notFound();
   const { page, menus, options } = detail;
   const publicUrl = `${base}/yoyaku/${id}`;
@@ -321,7 +325,24 @@ export default async function ReservationDetailPage({
                           {r.friendName}
                         </Link>
                       ) : (
-                        r.friendName
+                        <>
+                          <span>{r.friendName}</span>
+                          {friendOptions.length > 0 && (
+                            <form action={linkReservationToFriend.bind(null, r.id, id)} className="mt-1 flex items-center gap-1">
+                              <Select name="friendId" defaultValue="" className="h-7 max-w-[140px] text-xs">
+                                <option value="" disabled>
+                                  LINE顧客を紐づけ…
+                                </option>
+                                {friendOptions.map((f) => (
+                                  <option key={f.id} value={f.id}>{f.displayName}</option>
+                                ))}
+                              </Select>
+                              <button type="submit" className="rounded border border-line px-1.5 py-0.5 text-xs text-ink hover:bg-surface-2">
+                                紐づけ
+                              </button>
+                            </form>
+                          )}
+                        </>
                       )}
                       {r.phone && <span className="ml-1 text-xs text-muted">({r.phone})</span>}
                     </td>
