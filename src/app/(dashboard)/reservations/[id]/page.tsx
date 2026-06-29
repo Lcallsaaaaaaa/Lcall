@@ -14,7 +14,7 @@ import {
   setReservationStatus,
   updateReservationPage,
 } from "@/features/reservations/actions";
-import { ReservationAgenda } from "@/components/features/ReservationAgenda";
+import { ReservationMonth } from "@/components/features/ReservationMonth";
 import { getPageReservations, getReservationPage } from "@/features/reservations/queries";
 import { listLineAccounts } from "@/features/line-accounts/queries";
 import { listTags } from "@/features/tags/queries";
@@ -32,8 +32,15 @@ const STATUS: Record<string, { label: string; tone: "ok" | "neutral" | "warn" | 
 };
 const PAY: Record<string, string> = { paid: "支払い済", unpaid: "未払い", refunded: "返金済" };
 
-export default async function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ReservationDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ cal?: string }>;
+}) {
   const { id } = await params;
+  const { cal } = await searchParams;
   const [detail, rows, tags, accounts, base] = await Promise.all([
     getReservationPage(id),
     getPageReservations(id),
@@ -44,6 +51,11 @@ export default async function ReservationDetailPage({ params }: { params: Promis
   if (!detail) notFound();
   const { page, menus, options } = detail;
   const publicUrl = `${base}/yoyaku/${id}`;
+  const now = new Date();
+  const ym = /^\d{4}-\d{2}$/.test(cal ?? "") ? cal! : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const calItems = rows
+    .filter((r) => r.status === "confirmed" || r.status === "pending")
+    .map((r) => ({ id: r.id, startAt: r.startAt, title: r.menuName ? `${r.friendName}・${r.menuName}` : r.friendName }));
   const perFriendUrl = `${publicUrl}?u={friendId}`;
 
   return (
@@ -268,23 +280,11 @@ export default async function ReservationDetailPage({ params }: { params: Promis
         </Card>
       )}
 
-      {/* カレンダー（今後7日間） */}
+      {/* カレンダー（月表示） */}
       <Card className="mb-5">
-        <CardHeader title="予定（カレンダー・今後7日間）" />
+        <CardHeader title="カレンダー（月表示）" />
         <div className="p-5">
-          <ReservationAgenda
-            items={rows
-              .filter((r) => {
-                const t = new Date(r.startAt).getTime();
-                return (r.status === "confirmed" || r.status === "pending") && t >= Date.now() && t <= Date.now() + 7 * 86400000;
-              })
-              .map((r) => ({
-                id: r.id,
-                startAt: r.startAt,
-                title: r.friendName,
-                sub: [r.menuName, STATUS[r.status]?.label].filter(Boolean).join("・"),
-              }))}
-          />
+          <ReservationMonth items={calItems} ym={ym} basePath={`/reservations/${id}`} />
         </div>
       </Card>
 
