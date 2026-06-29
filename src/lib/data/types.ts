@@ -440,6 +440,8 @@ export interface ReservationPage {
   title: string;
   /** simple=日時枠のみ / menu=メニュー（所要時間・料金）を選んでから日時 */
   type: ReservationType;
+  /** 対象の公式アカウント（未指定=共通＝全アカウント）。友だち追加リンク/自動紐づけに使用 */
+  lineAccountId?: ID;
   description?: string;
   /** 開始時刻の刻み（分）。例 30 */
   slotMinutes: number;
@@ -483,6 +485,8 @@ export interface Reservation {
   reservationPageId: ID;
   friendId?: ID;
   menuId?: ID;
+  /** 紐づく公式アカウント（予約時に決定。友だち追加(follow)時の自動紐づけ・通知に使用） */
+  lineAccountId?: ID;
   /** 予約開始/終了（ISO） */
   startAt: ISODate;
   endAt: ISODate;

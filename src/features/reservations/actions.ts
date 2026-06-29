@@ -44,6 +44,7 @@ export async function createReservationPage(formData: FormData) {
     id,
     title: str(formData.get("title")) || "予約",
     type,
+    lineAccountId: str(formData.get("lineAccountId")) || undefined,
     description: str(formData.get("description")) || undefined,
     slotMinutes: num(formData.get("slotMinutes"), 30),
     durationMinutes: num(formData.get("durationMinutes"), 30),
@@ -63,6 +64,7 @@ export async function updateReservationPage(id: string, formData: FormData) {
   const db = getDataProvider();
   await db.reservationPages.update(id, {
     title: str(formData.get("title")) || "予約",
+    lineAccountId: str(formData.get("lineAccountId")) || undefined,
     description: str(formData.get("description")) || undefined,
     slotMinutes: num(formData.get("slotMinutes"), 30),
     durationMinutes: num(formData.get("durationMinutes"), 30),
@@ -158,6 +160,7 @@ export async function createReservation(pageId: string, formData: FormData) {
     redirect(`/yoyaku/${pageId}?error=slot`);
   }
   const friendId = str(formData.get("u")) || undefined;
+  const friend = friendId ? await db.friends.get(friendId) : null;
   const menuId = page.type === "menu" ? str(formData.get("menuId")) || undefined : undefined;
   const menu = menuId ? await db.reservationMenus.get(menuId) : null;
   if (page.type === "menu" && (!menu || menu.kind === "option")) redirect(`/yoyaku/${pageId}?error=menu`);
@@ -191,6 +194,7 @@ export async function createReservation(pageId: string, formData: FormData) {
     reservationPageId: pageId,
     friendId,
     menuId,
+    lineAccountId: friend?.lineAccountId ?? page.lineAccountId,
     startAt: start.toISOString(),
     endAt: new Date(endMs).toISOString(),
     status: "confirmed",
@@ -221,10 +225,9 @@ export async function createReservation(pageId: string, formData: FormData) {
   const cancelUrl = base ? `${base}/yoyaku/${pageId}/cancel?r=${id}&t=${cancelToken}` : "";
 
   // LINE 予約確定メッセージ（実トークン時のみ送信）
-  if (friendId) {
-    const friend = await db.friends.get(friendId);
-    const account = friend ? await db.lineAccounts.get(friend.lineAccountId) : null;
-    if (friend && account && isRealToken(account.channelAccessToken)) {
+  if (friend) {
+    const account = await db.lineAccounts.get(friend.lineAccountId);
+    if (account && isRealToken(account.channelAccessToken)) {
       const head = page.confirmText
         ? applyNameVars(page.confirmText, friend.displayName)
         : `ご予約を承りました。`;
@@ -241,7 +244,8 @@ export async function createReservation(pageId: string, formData: FormData) {
   if (created) await notifyReservation(db, created, "created");
 
   revalidatePath(`/reservations/${pageId}`);
-  redirect(`/yoyaku/${pageId}?submitted=1`);
+  // 友だちでない予約者には「友だち追加でリマインドが届く」案内を表示（join=1）
+  redirect(`/yoyaku/${pageId}?submitted=1${friend ? "" : "&join=1"}`);
 }
 
 /** 公開：本人によるキャンセル（取消トークン必須・認証不要）。 */

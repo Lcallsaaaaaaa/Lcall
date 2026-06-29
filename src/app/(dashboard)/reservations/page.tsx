@@ -6,9 +6,10 @@ import { FormField, Input, Select } from "@/components/ui/Form";
 import { Badge } from "@/components/ui/StatusBadge";
 import { createReservationPage } from "@/features/reservations/actions";
 import { listReservationPages } from "@/features/reservations/queries";
+import { listLineAccounts } from "@/features/line-accounts/queries";
 
 export default async function ReservationsPage() {
-  const pages = await listReservationPages();
+  const [pages, accounts] = await Promise.all([listReservationPages(), listLineAccounts()]);
 
   return (
     <div className="mx-auto max-w-[1000px] p-6 lg:p-8">
@@ -29,6 +30,14 @@ export default async function ReservationsPage() {
             <Select id="type" name="type" defaultValue="simple">
               <option value="simple">シンプル（日時枠のみ）</option>
               <option value="menu">メニュー型（メニューを選んで予約）</option>
+            </Select>
+          </FormField>
+          <FormField label="対象の公式アカウント" htmlFor="lineAccountId" hint="友だち追加・通知に使用">
+            <Select id="lineAccountId" name="lineAccountId" defaultValue="">
+              <option value="">共通（全アカウント）</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
             </Select>
           </FormField>
           <Button type="submit" variant="gradient" size="md">

@@ -67,6 +67,12 @@ export async function POST(
           // コンバージョン送信失敗で挨拶配信を止めない
         }
       }
+      // Web予約後に友だち追加した人を、直近の未紐づけ予約へ自動で紐づけ（前日リマインドが届くように）
+      try {
+        await linkPendingReservation(db, account.id, friend.id);
+      } catch {
+        // 紐づけ失敗で挨拶配信を止めない
+      }
       // 追加時挨拶＋即時配信ステップ（delay 0）を送る
       await processScenarios(db, { friendId: friend.id });
     } else if (ev.type === "unfollow") {
@@ -153,6 +159,26 @@ export async function POST(
 
   revalidatePath("/inbox");
   return new Response("ok");
+}
+
+/**
+ * Web予約（友だち未紐づけ）を、友だち追加した人へ推定で紐づける（60分以内・直近1件）。
+ * 予約時に決めた lineAccountId が一致するもの優先。共通（未指定）予約はアカウント不問で拾う。
+ * これにより「予約→友だち追加」した新規客にも前日リマインドが届く。
+ */
+async function linkPendingReservation(db: DataProvider, accountId: string, friendId: string): Promise<void> {
+  const cutoff = Date.now() - 60 * 60 * 1000;
+  const pending = (await db.reservations.list())
+    .filter(
+      (r) =>
+        r.status === "confirmed" &&
+        !r.friendId &&
+        new Date(r.createdAt).getTime() >= cutoff &&
+        (!r.lineAccountId || r.lineAccountId === accountId)
+    )
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  const r = pending[0];
+  if (r) await db.reservations.update(r.id, { friendId, lineAccountId: accountId });
 }
 
 async function findOrCreateFriend(

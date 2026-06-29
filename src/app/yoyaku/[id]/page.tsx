@@ -6,6 +6,7 @@ import { FormField, Input, Textarea } from "@/components/ui/Form";
 import { GradientLogo } from "@/components/ui/GradientLogo";
 import { createReservation } from "@/features/reservations/actions";
 import { getBookingView } from "@/features/reservations/queries";
+import { listLineAccounts } from "@/features/line-accounts/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function PublicBookingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ u?: string; menu?: string; date?: string; opt?: string | string[]; submitted?: string; error?: string }>;
+  searchParams: Promise<{ u?: string; menu?: string; date?: string; opt?: string | string[]; submitted?: string; join?: string; error?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -23,6 +24,14 @@ export default async function PublicBookingPage({
   if (!view) notFound();
   const { page, menus, options, days, selectedMenu, selectedOptions, totalDuration, totalPrice, selectedDate, slots } = view;
   const u = sp.u;
+
+  // 友だちでない予約者への「友だち追加」リンク（指定アカウント or 共通=分散登録）
+  let addFriendUrl = "/api/distribute";
+  if (sp.submitted && sp.join) {
+    const accounts = await listLineAccounts();
+    const acc = page.lineAccountId ? accounts.find((a) => a.id === page.lineAccountId) : undefined;
+    addFriendUrl = acc?.addFriendUrl || "/api/distribute";
+  }
 
   // menu/date 切替リンク。選択中のオプションも引き継ぐ（opts で上書き可、menu:null で先頭=メニュー選択へ戻す）
   const qs = (extra: { menu?: string | null; date?: string; opts?: string[] } = {}) => {
@@ -47,6 +56,17 @@ export default async function PublicBookingPage({
             <CheckCircle2 className="mx-auto size-10 text-ok" />
             <h1 className="mt-3 text-xl font-semibold text-ink">予約が確定しました</h1>
             <p className="mt-1 text-sm text-muted">ご予約ありがとうございます。</p>
+            {sp.join && (
+              <div className="mt-6 rounded-lg border border-brand/30 bg-brand/5 p-4 text-left">
+                <p className="text-sm font-medium text-ink">📱 公式LINEを友だち追加</p>
+                <p className="mt-1 text-xs text-muted">
+                  友だち追加しておくと、前日にリマインドが届きます。当日の確認もスムーズです。
+                </p>
+                <a href={addFriendUrl} className={buttonClasses("gradient", "md", "mt-3 w-full")}>
+                  友だち追加する
+                </a>
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">

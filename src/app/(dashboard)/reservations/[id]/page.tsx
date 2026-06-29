@@ -14,6 +14,7 @@ import {
   updateReservationPage,
 } from "@/features/reservations/actions";
 import { getPageReservations, getReservationPage } from "@/features/reservations/queries";
+import { listLineAccounts } from "@/features/line-accounts/queries";
 import { listTags } from "@/features/tags/queries";
 import { publicBaseUrl } from "@/lib/url";
 
@@ -29,10 +30,11 @@ const STATUS: Record<string, { label: string; tone: "ok" | "neutral" | "warn" | 
 
 export default async function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [detail, rows, tags, base] = await Promise.all([
+  const [detail, rows, tags, accounts, base] = await Promise.all([
     getReservationPage(id),
     getPageReservations(id),
     listTags(),
+    listLineAccounts(),
     publicBaseUrl(),
   ]);
   if (!detail) notFound();
@@ -85,6 +87,14 @@ export default async function ReservationDetailPage({ params }: { params: Promis
           </FormField>
           <FormField label="説明（任意）" htmlFor="description">
             <Input id="description" name="description" defaultValue={page.description} />
+          </FormField>
+          <FormField label="対象の公式アカウント" htmlFor="lineAccountId" hint="友だち追加リンク・通知・自動紐づけに使用">
+            <Select id="lineAccountId" name="lineAccountId" defaultValue={page.lineAccountId ?? ""}>
+              <option value="">共通（全アカウント）</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </Select>
           </FormField>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <FormField label="開始(時)" htmlFor="openHour">
