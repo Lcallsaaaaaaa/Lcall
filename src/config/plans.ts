@@ -6,8 +6,7 @@ export type PlanFeatureKey =
   | "forms"
   | "chat"
   | "reservations"
-  | "aiCharacter"
-  | "points";
+  | "aiCharacter";
 
 export interface PlanFeatureDef {
   key: PlanFeatureKey;
@@ -23,7 +22,6 @@ export const PLAN_FEATURES: PlanFeatureDef[] = [
   { key: "chat", label: "チャット対応・タグ管理" },
   { key: "reservations", label: "予約システム" },
   { key: "aiCharacter", label: "AIキャラ自動応答" },
-  { key: "points", label: "ポイントシステム", comingSoon: true },
 ];
 
 export interface PlanDef {
@@ -53,7 +51,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     name: "Lite",
     lineLimit: 5,
     monthlyFee: 9800,
-    features: ["broadcast", "forms", "chat"],
+    features: ["broadcast", "forms", "chat", "aiCharacter"],
     affiliateRate: 0,
   },
   standard: {
@@ -69,7 +67,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     name: "Pro",
     lineLimit: 15,
     monthlyFee: 19800,
-    features: ["broadcast", "forms", "chat", "reservations", "aiCharacter", "points"],
+    features: ["broadcast", "forms", "chat", "reservations", "aiCharacter"],
     affiliateRate: 0.15,
   },
 };
