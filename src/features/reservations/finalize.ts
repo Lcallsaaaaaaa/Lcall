@@ -21,7 +21,8 @@ function uid(p: string): string {
 export async function finalizeReservationConfirmed(
   db: DataProvider,
   reservationId: string,
-  kind: "created" | "changed" = "created"
+  kind: "created" | "changed" = "created",
+  notifyStore = true
 ): Promise<void> {
   const r = await db.reservations.get(reservationId);
   if (!r) return;
@@ -49,13 +50,23 @@ export async function finalizeReservationConfirmed(
     if (friend && account && isRealToken(account.channelAccessToken)) {
       const menus = await db.reservationMenus.list();
       const menu = r.menuId ? menus.find((m) => m.id === r.menuId) : null;
-      const opts = (r.optionIds ?? []).map((o) => menus.find((m) => m.id === o)).filter(Boolean) as { name: string }[];
+      const opts = (r.optionIds ?? [])
+        .map((o) => menus.find((m) => m.id === o))
+        .filter((m): m is NonNullable<typeof m> => !!m);
       const defaultHead = kind === "changed" ? "ご予約の日時を変更しました。" : "ご予約を承りました。";
       const head = kind === "created" && page.confirmText ? applyNameVars(page.confirmText, friend.displayName) : defaultHead;
-      const lines = [head, `日時：${fmtJa(r.startAt)}`];
-      if (menu) lines.push(`メニュー：${menu.name}`);
+      const lines = [head, `日付：${fmtJa(r.startAt)}`];
+      if (menu) lines.push(`サービス：${menu.name}`);
       if (opts.length) lines.push(`オプション：${opts.map((o) => o.name).join("、")}`);
-      if (r.paymentStatus === "paid" && r.amount) lines.push(`お支払い：¥${r.amount.toLocaleString()}（決済済み）`);
+      // 料金（メニュー＋オプションの合計。価格設定がある場合）
+      const priceParts = [menu?.price, ...opts.map((o) => o.price)].filter(
+        (p): p is number => typeof p === "number"
+      );
+      if (priceParts.length) {
+        const total = priceParts.reduce((s, p) => s + p, 0);
+        const paidNote = r.paymentStatus === "paid" ? "（決済済み）" : "";
+        lines.push(`料金：¥${total.toLocaleString()}${paidNote}`);
+      }
       const base = process.env.LCALL_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "");
       if (base && r.cancelToken) {
         lines.push(`\nご予約の確認・キャンセルはこちら：\n${base}/yoyaku/${r.reservationPageId}/cancel?r=${r.id}&t=${r.cancelToken}`);
@@ -64,6 +75,6 @@ export async function finalizeReservationConfirmed(
     }
   }
 
-  // 店舗側へ通知（指定タグの友だちへLINE＋指定メール）
-  await notifyReservation(db, r, kind);
+  // 店舗側へ通知（指定タグの友だちへLINE＋指定メール）。予約時に通知済みのケースでは skip。
+  if (notifyStore) await notifyReservation(db, r, kind);
 }

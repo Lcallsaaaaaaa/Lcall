@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { sendFriendAddConversion } from "@/lib/ads-send";
+import { finalizeReservationConfirmed } from "@/features/reservations/finalize";
 import { getDataProvider } from "@/lib/data/provider";
 import type { DataProvider } from "@/lib/data/repository";
 import type { DistributionLog, Friend, LineAccount } from "@/lib/data/types";
@@ -178,7 +179,11 @@ async function linkPendingReservation(db: DataProvider, accountId: string, frien
     )
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const r = pending[0];
-  if (r) await db.reservations.update(r.id, { friendId, lineAccountId: accountId });
+  if (r) {
+    await db.reservations.update(r.id, { friendId, lineAccountId: accountId });
+    // 予約完了LINE（予約時は友だち未紐づけで送れなかったため、追加直後に送る）。店舗通知は予約時に済んでいるので skip。
+    await finalizeReservationConfirmed(db, r.id, "created", false);
+  }
 }
 
 async function findOrCreateFriend(
