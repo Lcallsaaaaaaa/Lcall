@@ -123,15 +123,19 @@ export default async function PublicBookingPage({
                     {u && <input type="hidden" name="u" value={u} />}
                     {selectedMenu && <input type="hidden" name="menuId" value={selectedMenu.id} />}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <FormField label="お名前（任意）" htmlFor="name">
-                        <Input id="name" name="name" />
+                      <FormField label="お名前" htmlFor="name" required>
+                        <Input id="name" name="name" required />
                       </FormField>
-                      <FormField label="電話番号（任意）" htmlFor="phone">
-                        <Input id="phone" name="phone" type="tel" />
+                      <FormField label="電話番号" htmlFor="phone" required>
+                        <Input id="phone" name="phone" type="tel" required />
                       </FormField>
                     </div>
                     <FormField label="ご要望（任意）" htmlFor="note">
-                      <Textarea id="note" name="note" />
+                      <Textarea
+                        id="note"
+                        name="note"
+                        placeholder="事前にご相談内容が分かっているとスムーズにいきますので、ご記入ご協力お願いします。"
+                      />
                     </FormField>
 
                     <p className="text-sm font-medium text-ink">時間を選んで予約</p>
