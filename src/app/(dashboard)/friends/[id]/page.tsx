@@ -7,11 +7,27 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Form";
 import { Badge, FriendStatusBadge } from "@/components/ui/StatusBadge";
 import { TagChip } from "@/components/ui/TagChip";
-import { getFriendDetail } from "@/features/friends/queries";
+import { type AnswerItem, getFriendDetail } from "@/features/friends/queries";
 import { assignTag, unassignTag } from "@/features/tags/actions";
 import { listTags } from "@/features/tags/queries";
 
 const fmtDateTime = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
+
+function AnswerList({ answers }: { answers: AnswerItem[] }) {
+  if (answers.length === 0) {
+    return <p className="px-3 pb-3 text-xs text-muted">回答項目がありません。</p>;
+  }
+  return (
+    <dl className="border-t border-line px-3 py-2">
+      {answers.map((a, i) => (
+        <div key={i} className="flex gap-3 border-b border-line/60 py-1.5 last:border-0">
+          <dt className="w-28 shrink-0 text-xs text-muted">{a.label}</dt>
+          <dd className="flex-1 whitespace-pre-wrap break-words text-sm text-ink">{a.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -111,16 +127,17 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
 
         <Card>
           <CardHeader title="フォーム回答履歴" description={`${formHistory.length} 件`} />
-          <div className="p-5">
+          <div className="space-y-3 p-5">
             {formHistory.length ? (
-              <ul className="space-y-2">
-                {formHistory.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-ink">{r.formTitle}</span>
-                    <span className="text-muted">{fmtDateTime(r.createdAt)}</span>
-                  </li>
-                ))}
-              </ul>
+              formHistory.map((r) => (
+                <details key={r.id} className="rounded-lg border border-line bg-surface-2/40" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="font-medium text-ink">{r.formTitle}</span>
+                    <span className="text-xs text-muted">{fmtDateTime(r.createdAt)}</span>
+                  </summary>
+                  <AnswerList answers={r.answers} />
+                </details>
+              ))
             ) : (
               <p className="text-sm text-muted">回答はありません。</p>
             )}
@@ -129,16 +146,17 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
 
         <Card>
           <CardHeader title="アンケート回答履歴" description={`${surveyHistory.length} 件`} />
-          <div className="p-5">
+          <div className="space-y-3 p-5">
             {surveyHistory.length ? (
-              <ul className="space-y-2">
-                {surveyHistory.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-ink">{r.surveyTitle}</span>
-                    <span className="text-muted">{fmtDateTime(r.createdAt)}</span>
-                  </li>
-                ))}
-              </ul>
+              surveyHistory.map((r) => (
+                <details key={r.id} className="rounded-lg border border-line bg-surface-2/40" open>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="font-medium text-ink">{r.surveyTitle}</span>
+                    <span className="text-xs text-muted">{fmtDateTime(r.createdAt)}</span>
+                  </summary>
+                  <AnswerList answers={r.answers} />
+                </details>
+              ))
             ) : (
               <p className="text-sm text-muted">回答はありません。</p>
             )}

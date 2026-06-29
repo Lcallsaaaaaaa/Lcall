@@ -90,16 +90,23 @@ export interface FriendTagRef {
   auto: boolean;
 }
 
+export interface AnswerItem {
+  label: string;
+  value: string;
+}
+
 export interface FriendFormHistory {
   id: string;
   formTitle: string;
   createdAt: string;
+  answers: AnswerItem[];
 }
 
 export interface FriendSurveyHistory {
   id: string;
   surveyTitle: string;
   createdAt: string;
+  answers: AnswerItem[];
 }
 
 export interface FriendDetail {
@@ -115,20 +122,37 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
   const friend = await db.friends.get(id);
   if (!friend) return null;
 
-  const [accounts, tags, friendTags, forms, formResponses, surveys, surveyResponses] =
+  const [accounts, tags, friendTags, forms, formFields, formResponses, surveys, surveyQuestions, surveyResponses] =
     await Promise.all([
       db.lineAccounts.list(),
       db.tags.list(),
       db.friendTags.list(),
       db.forms.list(),
+      db.formFields.list(),
       db.formResponses.list(),
       db.surveys.list(),
+      db.surveyQuestions.list(),
       db.surveyResponses.list(),
     ]);
 
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const formTitle = new Map(forms.map((f) => [f.id, f.title]));
   const surveyTitle = new Map(surveys.map((s) => [s.id, s.title]));
+  // 回答項目ID → ラベル（フォーム/アンケートそれぞれ）。順序保持のため order でソート。
+  const fieldLabel = new Map(formFields.map((f) => [f.id, f.label]));
+  const fieldsByForm = new Map<string, typeof formFields>();
+  for (const f of [...formFields].sort((a, b) => a.order - b.order)) {
+    const arr = fieldsByForm.get(f.formId) ?? [];
+    arr.push(f);
+    fieldsByForm.set(f.formId, arr);
+  }
+  const questionLabel = new Map(surveyQuestions.map((q) => [q.id, q.label]));
+  const questionsBySurvey = new Map<string, typeof surveyQuestions>();
+  for (const q of [...surveyQuestions].sort((a, b) => a.order - b.order)) {
+    const arr = questionsBySurvey.get(q.surveyId) ?? [];
+    arr.push(q);
+    questionsBySurvey.set(q.surveyId, arr);
+  }
 
   const friendTagRefs: FriendTagRef[] = friendTags
     .filter((ft) => ft.friendId === id)
@@ -142,14 +166,36 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
     formHistory: formResponses
       .filter((r) => r.friendId === id)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-      .map((r) => ({ id: r.id, formTitle: formTitle.get(r.formId) ?? r.formId, createdAt: r.createdAt })),
+      .map((r) => {
+        // 項目順に並べ、未入力の項目も含めて見やすく（値が無ければ「—」）
+        const order = fieldsByForm.get(r.formId);
+        const keys = order ? order.map((f) => f.id) : Object.keys(r.values);
+        return {
+          id: r.id,
+          formTitle: formTitle.get(r.formId) ?? r.formId,
+          createdAt: r.createdAt,
+          answers: keys
+            .filter((k) => order || r.values[k] != null)
+            .map((k) => ({ label: fieldLabel.get(k) ?? k, value: r.values[k] ?? "—" })),
+        };
+      }),
     surveyHistory: surveyResponses
       .filter((r) => r.friendId === id)
       .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-      .map((r) => ({
-        id: r.id,
-        surveyTitle: surveyTitle.get(r.surveyId) ?? r.surveyId,
-        createdAt: r.createdAt,
-      })),
+      .map((r) => {
+        const order = questionsBySurvey.get(r.surveyId);
+        const keys = order ? order.map((q) => q.id) : Object.keys(r.values);
+        return {
+          id: r.id,
+          surveyTitle: surveyTitle.get(r.surveyId) ?? r.surveyId,
+          createdAt: r.createdAt,
+          answers: keys
+            .filter((k) => order || r.values[k] != null)
+            .map((k) => ({
+              label: questionLabel.get(k) ?? k,
+              value: r.values[k] != null ? String(r.values[k]) : "—",
+            })),
+        };
+      }),
   };
 }

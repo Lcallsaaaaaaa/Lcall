@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import { getProfile, isRealToken, pushCarousel, pushText } from "@/lib/line";
 import { trackingUrlForRequest } from "@/lib/tracking";
-import { applyNameVars } from "@/lib/vars";
+import { applyFriendVars } from "@/lib/vars";
 
 function str(v: FormDataEntryValue | null): string {
   return (v == null ? "" : String(v)).trim();
@@ -33,8 +33,8 @@ export async function sendReply(friendId: string, formData: FormData) {
     const session = await getSession();
     const db = getDataProvider();
     const friend = await db.friends.get(friendId);
-    // {{name}} を友だちの表示名に置換（手入力・定型文どちらでも安全に効く）
-    const text = applyNameVars(raw, friend?.displayName ?? "");
+    // {{name}}=LINE名 / {friendId}=友だちID を置換（手入力・定型文どちらでも安全に効く）
+    const text = applyFriendVars(raw, { displayName: friend?.displayName ?? "", id: friendId });
     await db.chatMessages.create({
       id: uid("cm"),
       friendId,
@@ -140,7 +140,7 @@ export async function sendTemplate(friendId: string, formData: FormData) {
   const tpl = templateId ? await db.messageTemplates.get(templateId) : null;
   if (tpl) {
     const friend = await db.friends.get(friendId);
-    const text = applyNameVars(tpl.text, friend?.displayName ?? "");
+    const text = applyFriendVars(tpl.text, { displayName: friend?.displayName ?? "", id: friendId });
     await recordOutbound(friendId, text);
     const account = friend ? await db.lineAccounts.get(friend.lineAccountId) : null;
     if (friend && account && isRealToken(account.channelAccessToken)) {

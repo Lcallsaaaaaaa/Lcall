@@ -2,6 +2,7 @@ import type { DataProvider } from "@/lib/data/repository";
 import { isRealToken, pushCarousel, pushText } from "@/lib/line";
 import { isOperationsSuspended } from "@/lib/operator";
 import { trackingUrl } from "@/lib/tracking";
+import { applyFriendVars } from "@/lib/vars";
 import { getBroadcast, resolveRecipients } from "./queries";
 
 function uid(prefix: string): string {
@@ -49,7 +50,8 @@ export async function deliverBroadcast(db: DataProvider, id: string): Promise<bo
           );
         }
       } else {
-        await pushText(acc.channelAccessToken, f.lineUserId, b.text ?? b.title);
+        // {{name}}/{friendId} を置換（フォームURLに {friendId} を入れると回答者をLINE名で記録）
+        await pushText(acc.channelAccessToken, f.lineUserId, applyFriendVars(b.text ?? b.title, f));
       }
     })
   );

@@ -3,7 +3,7 @@ import type { ScenarioStep } from "@/lib/data/types";
 import { isRealToken, pushCarousel, pushText } from "@/lib/line";
 import { isOperationsSuspended } from "@/lib/operator";
 import { trackingUrl } from "@/lib/tracking";
-import { applyNameVars } from "@/lib/vars";
+import { applyFriendVars } from "@/lib/vars";
 import { conditionMet, dueSteps } from "./engine";
 
 interface CarouselCardLite {
@@ -124,7 +124,7 @@ export async function processScenarios(
               await pushCarousel(
                 acc.channelAccessToken,
                 f.lineUserId,
-                applyNameVars(step.text || "カルーセル", f.displayName),
+                applyFriendVars(step.text || "カルーセル", f),
                 cards.map((c) => ({
                   thumbnailImageUrl: c.imageUrl || undefined,
                   title: c.title,
@@ -135,7 +135,7 @@ export async function processScenarios(
               );
             }
           } else {
-            await pushText(acc.channelAccessToken, f.lineUserId, applyNameVars(step.text, f.displayName));
+            await pushText(acc.channelAccessToken, f.lineUserId, applyFriendVars(step.text, f));
           }
         }
         if (step.autoTagId) {

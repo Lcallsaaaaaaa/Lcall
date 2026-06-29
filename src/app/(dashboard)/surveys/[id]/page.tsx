@@ -46,6 +46,7 @@ export default async function SurveyBuilderPage({ params }: { params: Promise<{ 
   const { survey, questions, responseCount } = data;
 
   const publicUrl = `${base}/s/${id}`;
+  const perFriendUrl = `${publicUrl}?u={friendId}`;
 
   return (
     <div className="mx-auto max-w-3xl p-6 lg:p-8">
@@ -72,6 +73,18 @@ export default async function SurveyBuilderPage({ params }: { params: Promise<{ 
             <ExternalLink className="size-4" />
             開く
           </a>
+        </div>
+        <div className="border-t border-line px-5 py-4">
+          <p className="text-xs font-medium text-ink">配信用URL（回答者をLINE名で記録）</p>
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
+            <Link2 className="size-4 shrink-0 text-muted" />
+            <code className="truncate text-xs text-ink">{perFriendUrl}</code>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            このURLを配信メッセージ・シナリオ・チャットの本文に貼って送ると、{" "}
+            <code className="text-ink">{"{friendId}"}</code> が送信先ごとに自動で置き換わり、回答が
+            その友だちに紐づきます（回答一覧・顧客詳細にLINE名で表示）。
+          </p>
         </div>
       </Card>
 
