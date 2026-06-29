@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import type { Reservation, ReservationType } from "@/lib/data/types";
-import { isRealToken, pushText } from "@/lib/line";
+import { stripe, stripeEnabled } from "@/lib/stripe";
 import { publicBaseUrl } from "@/lib/url";
-import { applyNameVars } from "@/lib/vars";
+import { finalizeReservationConfirmed } from "./finalize";
 import { notifyReservation } from "./notify";
 
 function str(v: FormDataEntryValue | null): string {
@@ -26,12 +26,13 @@ async function requireOwner() {
   if (!session || session.role !== "owner") throw new Error("forbidden");
 }
 
-const fmtJa = (iso: string) => {
-  const d = new Date(iso);
-  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
+/** 支払い済みなら Stripe で全額返金する（キャンセル時）。 */
+async function refundIfPaid(r: Reservation): Promise<void> {
+  if (r.paymentStatus === "paid" && r.stripePaymentIntentId && stripeEnabled()) {
+    const res = await stripe("POST", "/refunds", { payment_intent: r.stripePaymentIntentId });
+    if (res.ok) await getDataProvider().reservations.update(r.id, { paymentStatus: "refunded" });
+  }
+}
 
 // ---- 管理：予約ページ ----
 
@@ -65,6 +66,7 @@ export async function updateReservationPage(id: string, formData: FormData) {
   await db.reservationPages.update(id, {
     title: str(formData.get("title")) || "予約",
     lineAccountId: str(formData.get("lineAccountId")) || undefined,
+    paymentMode: str(formData.get("paymentMode")) === "prepay" ? "prepay" : "none",
     description: str(formData.get("description")) || undefined,
     slotMinutes: num(formData.get("slotMinutes"), 30),
     durationMinutes: num(formData.get("durationMinutes"), 30),
@@ -144,7 +146,11 @@ export async function setReservationStatus(
   status: Reservation["status"]
 ) {
   await requireOwner();
-  await getDataProvider().reservations.update(reservationId, { status });
+  const db = getDataProvider();
+  const r = await db.reservations.get(reservationId);
+  await db.reservations.update(reservationId, { status });
+  // キャンセルにしたら支払い済みは自動で全額返金
+  if (status === "cancelled" && r) await refundIfPaid(r);
   revalidatePath(`/reservations/${pageId}`);
 }
 
@@ -178,15 +184,24 @@ export async function createReservation(pageId: string, formData: FormData) {
     options.reduce((s, o) => s + o.durationMinutes, 0);
   const endMs = start.getTime() + durationMin * 60000;
 
-  // 定員の最終チェック（二重予約・満枠を防ぐ）
+  // 定員の最終チェック（確定＋支払い待ち仮押さえ で満枠を防ぐ）
+  const holdCutoff = Date.now() - 30 * 60 * 1000;
   const overlap = (await db.reservations.list()).filter(
     (r) =>
       r.reservationPageId === pageId &&
-      r.status === "confirmed" &&
+      (r.status === "confirmed" ||
+        (r.status === "pending" && new Date(r.createdAt).getTime() >= holdCutoff)) &&
       new Date(r.startAt).getTime() < endMs &&
       start.getTime() < new Date(r.endAt).getTime()
   ).length;
   if (overlap >= page.capacity) redirect(`/yoyaku/${pageId}?error=full`);
+
+  // 合計料金（事前支払い用）
+  const priceParts = [menu?.price, ...options.map((o) => o.price)].filter(
+    (p): p is number => typeof p === "number"
+  );
+  const amount = priceParts.reduce((s, p) => s + p, 0);
+  const isPrepay = page.paymentMode === "prepay" && stripeEnabled() && amount > 0;
 
   const id = uid("rv");
   const cancelToken = Math.random().toString(36).slice(2, 12);
@@ -198,7 +213,9 @@ export async function createReservation(pageId: string, formData: FormData) {
     lineAccountId: friend?.lineAccountId ?? page.lineAccountId,
     startAt: start.toISOString(),
     endAt: new Date(endMs).toISOString(),
-    status: "confirmed",
+    status: isPrepay ? "pending" : "confirmed",
+    paymentStatus: isPrepay ? "unpaid" : undefined,
+    amount: isPrepay ? amount : undefined,
     optionIds: options.length ? options.map((o) => o.id) : undefined,
     name: str(formData.get("name")) || undefined,
     phone: str(formData.get("phone")) || undefined,
@@ -207,42 +224,33 @@ export async function createReservation(pageId: string, formData: FormData) {
     createdAt: new Date().toISOString(),
   });
 
-  // 回答時タグ付与（予約時タグ）
-  if (page.autoTagId && friendId) {
-    const tags = await db.friendTags.list();
-    if (!tags.some((t) => t.friendId === friendId && t.tagId === page.autoTagId)) {
-      await db.friendTags.create({
-        id: uid("ft"),
-        friendId,
-        tagId: page.autoTagId,
-        auto: true,
-        createdAt: new Date().toISOString(),
-      });
+  if (isPrepay) {
+    // Stripe Checkout を作成して決済へ。成功は webhook(checkout.session.completed) で確定する。
+    const base = (await publicBaseUrl()) || process.env.LCALL_PUBLIC_BASE_URL?.trim() || "";
+    const itemName = [menu?.name, ...options.map((o) => o.name)].filter(Boolean).join(" + ") || page.title;
+    const session = await stripe("POST", "/checkout/sessions", {
+      mode: "payment",
+      success_url: `${base}/yoyaku/${pageId}?submitted=1&paid=1${friend ? "" : "&join=1"}`,
+      cancel_url: `${base}/yoyaku/${pageId}?error=payment`,
+      client_reference_id: id,
+      "metadata[kind]": "reservation",
+      "metadata[reservationId]": id,
+      "line_items[0][quantity]": 1,
+      "line_items[0][price_data][currency]": "jpy",
+      "line_items[0][price_data][unit_amount]": amount,
+      "line_items[0][price_data][product_data][name]": itemName,
+    });
+    if (session.ok && session.data?.url && session.data?.id) {
+      await db.reservations.update(id, { stripeSessionId: String(session.data.id) });
+      redirect(String(session.data.url));
     }
+    // 決済セッション作成に失敗したら仮押さえを取り消してエラー表示
+    await db.reservations.update(id, { status: "cancelled" });
+    redirect(`/yoyaku/${pageId}?error=payment`);
   }
 
-  // 取消リンク（本人セルフキャンセル用）。公開URL基底はリクエストから導出。
-  const base = await publicBaseUrl();
-  const cancelUrl = base ? `${base}/yoyaku/${pageId}/cancel?r=${id}&t=${cancelToken}` : "";
-
-  // LINE 予約確定メッセージ（実トークン時のみ送信）
-  if (friend) {
-    const account = await db.lineAccounts.get(friend.lineAccountId);
-    if (account && isRealToken(account.channelAccessToken)) {
-      const head = page.confirmText
-        ? applyNameVars(page.confirmText, friend.displayName)
-        : `ご予約を承りました。`;
-      const lines = [head, `日時：${fmtJa(start.toISOString())}`];
-      if (menu) lines.push(`メニュー：${menu.name}`);
-      if (options.length) lines.push(`オプション：${options.map((o) => o.name).join("、")}`);
-      if (cancelUrl) lines.push(`\nご予約の確認・キャンセルはこちら：\n${cancelUrl}`);
-      await pushText(account.channelAccessToken, friend.lineUserId, lines.join("\n"));
-    }
-  }
-
-  // 店舗側へ通知（指定タグの友だちへLINE＋指定メール）
-  const created = await db.reservations.get(id);
-  if (created) await notifyReservation(db, created, "created");
+  // 無料予約：その場で確定処理（タグ・確定LINE・店舗通知）
+  await finalizeReservationConfirmed(db, id);
 
   revalidatePath(`/reservations/${pageId}`);
   // 友だちでない予約者には「友だち追加でリマインドが届く」案内を表示（join=1）
@@ -261,6 +269,7 @@ export async function cancelReservationPublic(pageId: string, formData: FormData
   }
   if (r.status === "confirmed") {
     await db.reservations.update(r.id, { status: "cancelled" });
+    await refundIfPaid(r); // 支払い済みは自動で全額返金
     const updated = await db.reservations.get(r.id);
     if (updated) await notifyReservation(db, updated, "cancelled");
     revalidatePath(`/reservations/${pageId}`);

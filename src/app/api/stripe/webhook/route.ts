@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { getDataProvider } from "@/lib/data/provider";
 import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
+import { finalizeReservationConfirmed } from "@/features/reservations/finalize";
 import { stripe, verifyStripeSignature } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -68,6 +69,21 @@ export async function POST(request: Request) {
 
   switch (event.type) {
     case "checkout.session.completed": {
+      // 予約の事前支払いはここで確定（メタデータ kind=reservation）。サブスク請求とは分岐。
+      if (obj.metadata?.kind === "reservation") {
+        const rid = String(obj.metadata?.reservationId || obj.client_reference_id || "");
+        const r = rid ? await db.reservations.get(rid) : null;
+        if (r && r.status !== "cancelled") {
+          await db.reservations.update(r.id, {
+            status: "confirmed",
+            paymentStatus: "paid",
+            stripePaymentIntentId: obj.payment_intent ? String(obj.payment_intent) : r.stripePaymentIntentId,
+          });
+          await finalizeReservationConfirmed(db, r.id);
+          revalidatePath(`/reservations/${r.reservationPageId}`);
+        }
+        break;
+      }
       const customer = await getOrCreateCustomer(obj.customer);
       let nextBillingAt: string | undefined;
       if (obj.subscription) {

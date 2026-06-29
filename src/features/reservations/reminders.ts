@@ -22,6 +22,13 @@ export async function processReservationReminders(
 ): Promise<{ reminded: number }> {
   if (await isOperationsSuspended(db)) return { reminded: 0 };
   const reservations = await db.reservations.list();
+  // 事前支払いの仮押さえ(pending)が30分以上未決済なら自動キャンセル（枠を解放・予約表を整理）
+  const HOLD_MS = 30 * 60 * 1000;
+  for (const r of reservations) {
+    if (r.status === "pending" && now.getTime() - new Date(r.createdAt).getTime() > HOLD_MS) {
+      await db.reservations.update(r.id, { status: "cancelled" });
+    }
+  }
   const due = reservations.filter((r) => {
     if (r.status !== "confirmed" || r.remindedAt) return false;
     const t = new Date(r.startAt).getTime();

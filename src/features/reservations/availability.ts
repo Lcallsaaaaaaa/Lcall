@@ -50,7 +50,13 @@ export function daySlots(
   if (!p) return [];
   const openMin = page.openHour * 60;
   const closeMin = page.closeHour * 60;
-  const active = existing.filter((r) => r.status === "confirmed");
+  // 確定予約＋「支払い待ち(pending)で30分以内に作成」のものが枠を占有する（仮押さえ）
+  const HOLD_MS = 30 * 60 * 1000;
+  const active = existing.filter(
+    (r) =>
+      r.status === "confirmed" ||
+      (r.status === "pending" && now.getTime() - new Date(r.createdAt).getTime() <= HOLD_MS)
+  );
   const slots: SlotOption[] = [];
   for (let t = openMin; t + durationMin <= closeMin; t += page.slotMinutes) {
     const h = Math.floor(t / 60);

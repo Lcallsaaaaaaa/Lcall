@@ -22,11 +22,13 @@ const WD = ["日", "月", "火", "水", "木", "金", "土"];
 const fmt = (s: string) => new Date(s).toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" });
 
 const STATUS: Record<string, { label: string; tone: "ok" | "neutral" | "warn" | "danger" }> = {
+  pending: { label: "支払い待ち", tone: "warn" },
   confirmed: { label: "予約中", tone: "ok" },
   done: { label: "来店済", tone: "neutral" },
   cancelled: { label: "キャンセル", tone: "danger" },
   noshow: { label: "来店なし", tone: "warn" },
 };
+const PAY: Record<string, string> = { paid: "支払い済", unpaid: "未払い", refunded: "返金済" };
 
 export default async function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -88,14 +90,22 @@ export default async function ReservationDetailPage({ params }: { params: Promis
           <FormField label="説明（任意）" htmlFor="description">
             <Input id="description" name="description" defaultValue={page.description} />
           </FormField>
-          <FormField label="対象の公式アカウント" htmlFor="lineAccountId" hint="友だち追加リンク・通知・自動紐づけに使用">
-            <Select id="lineAccountId" name="lineAccountId" defaultValue={page.lineAccountId ?? ""}>
-              <option value="">共通（全アカウント）</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </Select>
-          </FormField>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="対象の公式アカウント" htmlFor="lineAccountId" hint="友だち追加リンク・通知・自動紐づけに使用">
+              <Select id="lineAccountId" name="lineAccountId" defaultValue={page.lineAccountId ?? ""}>
+                <option value="">共通（全アカウント）</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="事前支払い" htmlFor="paymentMode" hint="全額前払いはStripe設定とメニュー料金が必要">
+              <Select id="paymentMode" name="paymentMode" defaultValue={page.paymentMode ?? "none"}>
+                <option value="none">なし（無料予約）</option>
+                <option value="prepay">全額前払い（オンライン決済）</option>
+              </Select>
+            </FormField>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <FormField label="開始(時)" htmlFor="openHour">
               <Input id="openHour" name="openHour" type="number" min={0} max={23} defaultValue={page.openHour} />
@@ -282,6 +292,12 @@ export default async function ReservationDetailPage({ params }: { params: Promis
                     )}
                     <td className="px-5 py-3">
                       <Badge tone={STATUS[r.status]?.tone ?? "neutral"}>{STATUS[r.status]?.label ?? r.status}</Badge>
+                      {r.paymentStatus && (
+                        <span className="ml-1 text-xs text-muted">
+                          {PAY[r.paymentStatus] ?? r.paymentStatus}
+                          {r.amount ? `(¥${r.amount.toLocaleString()})` : ""}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3">
                       {r.status === "confirmed" ? (

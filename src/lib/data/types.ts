@@ -442,6 +442,8 @@ export interface ReservationPage {
   type: ReservationType;
   /** 対象の公式アカウント（未指定=共通＝全アカウント）。友だち追加リンク/自動紐づけに使用 */
   lineAccountId?: ID;
+  /** 事前支払い。"none"=なし（既定）/ "prepay"=全額前払い（Stripe・要キー設定。メニュー/オプションに料金が必要） */
+  paymentMode?: "none" | "prepay";
   description?: string;
   /** 開始時刻の刻み（分）。例 30 */
   slotMinutes: number;
@@ -492,7 +494,14 @@ export interface Reservation {
   /** 予約開始/終了（ISO） */
   startAt: ISODate;
   endAt: ISODate;
-  status: "confirmed" | "cancelled" | "done" | "noshow";
+  /** pending=事前支払い待ち（枠は仮押さえ・成功で confirmed）。 */
+  status: "pending" | "confirmed" | "cancelled" | "done" | "noshow";
+  /** 事前支払いの状態 */
+  paymentStatus?: "unpaid" | "paid" | "refunded";
+  /** 請求額（円） */
+  amount?: number;
+  stripeSessionId?: string;
+  stripePaymentIntentId?: string;
   /** 選択した追加オプション（ReservationMenu.kind="option" のid） */
   optionIds?: ID[];
   /** 予約者の入力（LINE名と別に氏名・電話を取りたい場合） */

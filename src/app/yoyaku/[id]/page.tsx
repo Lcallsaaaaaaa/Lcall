@@ -15,7 +15,7 @@ export default async function PublicBookingPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ u?: string; menu?: string; date?: string; opt?: string | string[]; submitted?: string; join?: string; error?: string }>;
+  searchParams: Promise<{ u?: string; menu?: string; date?: string; opt?: string | string[]; submitted?: string; join?: string; paid?: string; error?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -55,7 +55,9 @@ export default async function PublicBookingPage({
           <div className="rounded-xl border border-line bg-surface p-8 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
             <CheckCircle2 className="mx-auto size-10 text-ok" />
             <h1 className="mt-3 text-xl font-semibold text-ink">予約が確定しました</h1>
-            <p className="mt-1 text-sm text-muted">ご予約ありがとうございます。</p>
+            <p className="mt-1 text-sm text-muted">
+              {sp.paid ? "お支払いが完了しました。ご予約ありがとうございます。" : "ご予約ありがとうございます。"}
+            </p>
             {sp.join && (
               <div className="mt-6 rounded-lg border border-brand/30 bg-brand/5 p-4 text-left">
                 <p className="text-sm font-medium text-ink">📱 公式LINEを友だち追加</p>
@@ -78,7 +80,9 @@ export default async function PublicBookingPage({
               <p className="mt-4 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
                 {sp.error === "full"
                   ? "選択した枠は満席になりました。別の時間をお選びください。"
-                  : "予約できませんでした。時間を選び直してください。"}
+                  : sp.error === "payment"
+                    ? "お支払いが完了しませんでした。もう一度お試しください。"
+                    : "予約できませんでした。時間を選び直してください。"}
               </p>
             )}
 
@@ -206,7 +210,14 @@ export default async function PublicBookingPage({
                       />
                     </FormField>
 
-                    <p className="text-sm font-medium text-ink">時間を選んで予約</p>
+                    <p className="text-sm font-medium text-ink">
+                      {page.paymentMode === "prepay" ? "時間を選んでお支払いへ進む" : "時間を選んで予約"}
+                    </p>
+                    {page.paymentMode === "prepay" && (
+                      <p className="-mt-2 text-xs text-muted">
+                        ※この予約は事前のオンライン決済（カード）が必要です。時間を選ぶと決済画面に進みます。
+                      </p>
+                    )}
                     {slots.length === 0 ? (
                       <p className="text-sm text-muted">この日の予約枠がありません。</p>
                     ) : (
