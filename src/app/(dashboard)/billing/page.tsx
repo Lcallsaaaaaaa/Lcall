@@ -102,6 +102,23 @@ export default async function BillingPage({
         </div>
       )}
 
+      {/* 現在申込中のプラン（契約があれば常に表示。manageカードを出さない状態でも見えるように） */}
+      {customer && customer.status !== "canceled" && !showManage && (
+        <Card className="mb-5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted">現在申込中のプラン</p>
+              <p className="mt-1 text-xl font-semibold text-ink">
+                {planDef?.name ?? "—"}
+                <span className="ml-2 text-sm font-normal text-muted">{yen(planDef?.monthlyFee ?? 0)}/月（税込）</span>
+              </p>
+              <p className="text-xs text-muted">LINE接続 {planDef?.lineLimit} ／ 次回課金 {fmtDate(customer.nextBillingAt)}</p>
+            </div>
+            <Badge tone={STATUS[customer.status].tone}>{STATUS[customer.status].label}</Badge>
+          </div>
+        </Card>
+      )}
+
       {/* 未契約 or 実Stripe未確立: プラン選択 */}
       {showSubscribe && (
         <Card className="mb-5">
@@ -110,22 +127,31 @@ export default async function BillingPage({
             description={`初期 ${yen(PRICING.setupFee)}（共通）＋ 月額はプラン別${stripe ? "（申込でStripe Checkoutへ）" : ""}`}
           />
           <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
-            {Object.values(PLANS).map((p) => (
-              <div key={p.code} className="rounded-xl border border-line p-4 text-center">
-                <p className="text-sm font-semibold text-ink">{p.name}</p>
-                <p className="mt-1 text-2xl font-semibold text-ink">
-                  {yen(p.monthlyFee)}
-                  <span className="text-xs font-normal text-muted">/月（税込）</span>
-                </p>
-                <p className="text-xs text-muted">LINE接続 {p.lineLimit}</p>
-                <form action={subscribePlan} className="mt-4">
-                  <input type="hidden" name="plan" value={p.code} />
-                  <Button type="submit" variant="gradient" size="md" className="w-full">
-                    {stripe ? "Stripeで申し込む" : "申し込む"}
-                  </Button>
-                </form>
-              </div>
-            ))}
+            {Object.values(PLANS).map((p) => {
+              const isCurrent = customer?.plan === p.code && customer.status !== "canceled";
+              return (
+                <div
+                  key={p.code}
+                  className={`rounded-xl border p-4 text-center ${isCurrent ? "border-brand bg-brand/5" : "border-line"}`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-sm font-semibold text-ink">{p.name}</p>
+                    {isCurrent && <Badge tone="ok">現在のプラン</Badge>}
+                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-ink">
+                    {yen(p.monthlyFee)}
+                    <span className="text-xs font-normal text-muted">/月（税込）</span>
+                  </p>
+                  <p className="text-xs text-muted">LINE接続 {p.lineLimit}</p>
+                  <form action={subscribePlan} className="mt-4">
+                    <input type="hidden" name="plan" value={p.code} />
+                    <Button type="submit" variant={isCurrent ? "outline" : "gradient"} size="md" className="w-full">
+                      {isCurrent ? "申込中のプラン" : stripe ? "Stripeで申し込む" : "申し込む"}
+                    </Button>
+                  </form>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
