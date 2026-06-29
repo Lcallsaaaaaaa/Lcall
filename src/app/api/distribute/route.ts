@@ -11,7 +11,19 @@ import { getDataProvider } from "@/lib/data/provider";
  */
 export async function GET(request: Request) {
   const db = getDataProvider();
-  const adCode = new URL(request.url).searchParams.get("ad") || undefined;
+  const url = new URL(request.url);
+  const sp = url.searchParams;
+  const adCode = sp.get("ad") || undefined;
+  // 広告クリックID（Google自動タグ=gclid / Meta=fbclid）。広告の遷移先を ?ad=CODE にしておくと
+  // 媒体が自動で付与する。友だち追加(follow)時にコンバージョンAPIへ引き継ぐため登録ログに保存。
+  const gclid = sp.get("gclid") || undefined;
+  const fbclid = sp.get("fbclid") || undefined;
+  // _fbp クッキー（あればMetaのマッチ品質向上）
+  const fbp = request.headers.get("cookie")?.match(/(?:^|;\s*)_fbp=([^;]+)/)?.[1];
+  const clientIp =
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined;
+  const userAgent = request.headers.get("user-agent") || undefined;
+
   const [candidates, strategy] = await Promise.all([getCandidates(), getStrategy()]);
   const chosen = selectAccount(candidates, strategy);
 
@@ -30,6 +42,11 @@ export async function GET(request: Request) {
     assignedLineAccountId: chosen.id,
     strategy,
     adCode,
+    gclid,
+    fbclid,
+    fbp: fbp ? decodeURIComponent(fbp) : undefined,
+    clientIp,
+    userAgent,
     createdAt: new Date().toISOString(),
   });
 

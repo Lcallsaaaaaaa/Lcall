@@ -104,6 +104,17 @@ export interface DistributionLog {
   strategy: DistributionStrategy;
   /** 流入元（広告コード）。?ad=CODE 経由のとき記録 */
   adCode?: string;
+  /** 広告クリックID等（Google=gclid / Meta=fbclid・_fbpクッキー）。着地時に記録し、
+   *  友だち追加(follow)時にコンバージョンAPIへ引き継ぐ。 */
+  gclid?: string;
+  fbclid?: string;
+  fbp?: string;
+  /** マッチ品質向上用（クリック時のIP/UA）。CAPI送信に利用 */
+  clientIp?: string;
+  userAgent?: string;
+  /** この登録ログに紐づいた友だち（コンバージョン重複送信の防止） */
+  friendId?: ID;
+  convertedAt?: ISODate;
   createdAt: ISODate;
 }
 
@@ -124,6 +135,9 @@ export interface Friend {
   status: "active" | "blocked" | "unsubscribed";
   /** 流入元（広告コード） */
   sourceCode?: string;
+  /** 広告クリックID（登録時に直近の登録ログから推定付与）。追加後のクリック計測も媒体へ送れる */
+  gclid?: string;
+  fbclid?: string;
   /** AI自動応答をこの友だちで一時停止（有人対応に切替） */
   aiPaused?: boolean;
   /** この友だち専用のAIキャラ上書き（最優先） */
@@ -419,6 +433,20 @@ export interface AdCode {
   createdAt: ISODate;
 }
 
+/** 広告コンバージョン送信ログ（Meta Conversions API / Google）。送信可否・結果の可視化と重複防止用。 */
+export interface ConversionLog {
+  id: ID;
+  friendId?: ID;
+  platform: "meta" | "google";
+  /** 送信イベント名（例: friend_add / Lead） */
+  event: string;
+  adCode?: string;
+  status: "sent" | "failed" | "skipped";
+  /** 結果やスキップ理由の補足（HTTPステータス・エラー要旨など） */
+  detail?: string;
+  createdAt: ISODate;
+}
+
 /** 1:1 チャット対応メッセージ（個別トーク） */
 export interface ChatMessage {
   id: ID;
@@ -614,6 +642,7 @@ export interface EntityMap {
   scenarioDeliveries: ScenarioDelivery;
   mediaAssets: MediaAsset;
   storedImages: StoredImage;
+  conversionLogs: ConversionLog;
   systemSettings: SystemSetting;
   // コントロールプレーン（運営DBのみ使用）
   clientAccounts: ClientAccount;

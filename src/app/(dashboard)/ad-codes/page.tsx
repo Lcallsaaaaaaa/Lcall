@@ -9,6 +9,9 @@ import { publicBaseUrl } from "@/lib/url";
 export default async function AdCodesPage() {
   const [codes, base] = await Promise.all([listAdCodes(), publicBaseUrl()]);
   const regUrl = (code: string) => `${base}/api/distribute?ad=${encodeURIComponent(code)}`;
+  // 広告出稿用URL（タグ計測付き）。媒体の遷移先にこれを使うと Pixel/gtag が発火し、
+  // gclid/fbclid を捕捉 → 友だち追加時に Meta/Google へコンバージョン送信する。
+  const adUrl = (code: string) => `${base}/j?ad=${encodeURIComponent(code)}`;
 
   return (
     <div className="mx-auto max-w-[1000px] p-6 lg:p-8">
@@ -59,9 +62,19 @@ export default async function AdCodesPage() {
                     </form>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
-                  <Link2 className="size-3.5 shrink-0 text-muted" />
-                  <code className="truncate text-xs text-ink">{regUrl(c.code)}</code>
+                <div className="mt-2 space-y-1.5">
+                  <p className="text-xs text-muted">登録URL（通常）</p>
+                  <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
+                    <Link2 className="size-3.5 shrink-0 text-muted" />
+                    <code className="truncate text-xs text-ink">{regUrl(c.code)}</code>
+                  </div>
+                  <p className="pt-1 text-xs text-muted">
+                    広告出稿用URL（Meta/Googleタグ計測付き）— 媒体の遷移先にこちらを使用
+                  </p>
+                  <div className="flex items-center gap-2 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2">
+                    <Megaphone className="size-3.5 shrink-0 text-brand" />
+                    <code className="truncate text-xs text-ink">{adUrl(c.code)}</code>
+                  </div>
                 </div>
               </li>
             ))}

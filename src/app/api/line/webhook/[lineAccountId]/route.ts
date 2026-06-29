@@ -1,7 +1,8 @@
 import { revalidatePath } from "next/cache";
+import { sendFriendAddConversion } from "@/lib/ads-send";
 import { getDataProvider } from "@/lib/data/provider";
 import type { DataProvider } from "@/lib/data/repository";
-import type { Friend, LineAccount } from "@/lib/data/types";
+import type { DistributionLog, Friend, LineAccount } from "@/lib/data/types";
 import { getMessageContent, getProfile, isRealToken, pushText, verifyLineSignature } from "@/lib/line";
 import { saveImageBytes } from "@/lib/storage";
 import { generateAutoReply, wantsHuman } from "@/features/ai/auto-reply";
@@ -43,10 +44,28 @@ export async function POST(
     if (!userId) continue;
 
     if (ev.type === "follow") {
-      const friend = await findOrCreateFriend(db, account, userId);
+      const { friend, isNew, matchedLog } = await findOrCreateFriend(db, account, userId);
       // 再フォロー時はブロック解除（status=active・ブロック日時クリア）
       if (friend.status !== "active" || friend.blockedAt) {
         await db.friends.update(friend.id, { status: "active", blockedAt: undefined });
+      }
+      // 新規友だち追加＝コンバージョン。広告クリックIDがあれば Meta/Google へサーバー側送信
+      //（環境変数が未設定なら自動スキップ。失敗しても以降の処理は止めない）
+      if (isNew) {
+        try {
+          await sendFriendAddConversion(db, {
+            friendId: friend.id,
+            adCode: matchedLog?.adCode,
+            gclid: matchedLog?.gclid,
+            fbclid: matchedLog?.fbclid,
+            fbp: matchedLog?.fbp,
+            clientIp: matchedLog?.clientIp,
+            userAgent: matchedLog?.userAgent,
+            clickTimeMs: matchedLog ? new Date(matchedLog.createdAt).getTime() : undefined,
+          });
+        } catch {
+          // コンバージョン送信失敗で挨拶配信を止めない
+        }
       }
       // 追加時挨拶＋即時配信ステップ（delay 0）を送る
       await processScenarios(db, { friendId: friend.id });
@@ -61,7 +80,7 @@ export async function POST(
         });
       }
     } else if (ev.type === "message") {
-      const friend = await findOrCreateFriend(db, account, userId);
+      const { friend } = await findOrCreateFriend(db, account, userId);
       const msg = ev.message ?? {};
       let text = "";
       let imageUrl: string | undefined;
@@ -140,10 +159,10 @@ async function findOrCreateFriend(
   db: DataProvider,
   account: LineAccount,
   userId: string
-): Promise<Friend> {
+): Promise<{ friend: Friend; isNew: boolean; matchedLog?: DistributionLog }> {
   const friends = await db.friends.list();
   const existing = friends.find((f) => f.lineUserId === userId);
-  if (existing) return existing;
+  if (existing) return { friend: existing, isNew: false };
 
   let displayName = "LINEユーザー";
   let pictureUrl: string | undefined;
@@ -153,11 +172,16 @@ async function findOrCreateFriend(
     pictureUrl = profile.pictureUrl;
   }
 
-  // 流入元（広告コード）を直近の登録ログから推定（60分以内）。
+  // 流入元（広告コード／クリックID）を直近の登録ログから推定（60分以内・未紐づけ）。
   // 同一アカウントの直近を優先し、無ければ全体の直近（クリックと友だち追加は別リクエストのため推定）。
   const cutoff = Date.now() - 60 * 60 * 1000;
   const adLogs = (await db.distributionLogs.list())
-    .filter((l) => l.adCode && new Date(l.createdAt).getTime() >= cutoff)
+    .filter(
+      (l) =>
+        (l.adCode || l.gclid || l.fbclid) &&
+        !l.friendId &&
+        new Date(l.createdAt).getTime() >= cutoff
+    )
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   const recent = adLogs.find((l) => l.assignedLineAccountId === account.id) ?? adLogs[0];
 
@@ -171,7 +195,16 @@ async function findOrCreateFriend(
     ltv: 0,
     status: "active",
     sourceCode: recent?.adCode,
+    gclid: recent?.gclid,
+    fbclid: recent?.fbclid,
   };
   await db.friends.create(friend);
-  return friend;
+  // ログを友だちに紐づけ（コンバージョン重複送信・二重マッチを防止）
+  if (recent) {
+    await db.distributionLogs.update(recent.id, {
+      friendId: friend.id,
+      convertedAt: new Date().toISOString(),
+    });
+  }
+  return { friend, isNew: true, matchedLog: recent };
 }
