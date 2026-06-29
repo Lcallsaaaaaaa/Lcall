@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bot,
+  CalendarClock,
   ClipboardList,
   CreditCard,
   FileText,
@@ -78,6 +79,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "forms", label: "申込フォーム", href: "/forms", icon: FileText, ready: true },
       { key: "surveys", label: "アンケート", href: "/surveys", icon: ClipboardList, ready: true },
+      { key: "reservations", label: "予約表", href: "/reservations", icon: CalendarClock, ready: true },
       { key: "lp", label: "LP管理", href: "/landing-pages", icon: LayoutTemplate, ready: true },
       { key: "media", label: "メディア", href: "/media", icon: Images, ready: true },
     ],

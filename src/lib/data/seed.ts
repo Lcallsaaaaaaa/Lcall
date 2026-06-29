@@ -451,6 +451,9 @@ export function buildSeed(now: Date = new Date()): Seed {
     ],
     storedImages: [],
     conversionLogs: [],
+    reservationPages: [],
+    reservationMenus: [],
+    reservations: [],
     // コントロールプレーン（運営DBのみ使用。クライアントのデモseedでは空）
     clientAccounts: [],
     clientInstances: [],

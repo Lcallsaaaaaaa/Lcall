@@ -8,8 +8,16 @@ import { Select } from "@/components/ui/Form";
 import { Badge, FriendStatusBadge } from "@/components/ui/StatusBadge";
 import { TagChip } from "@/components/ui/TagChip";
 import { type AnswerItem, getFriendDetail } from "@/features/friends/queries";
+import { getFriendReservations } from "@/features/reservations/queries";
 import { assignTag, unassignTag } from "@/features/tags/actions";
 import { listTags } from "@/features/tags/queries";
+
+const RES_STATUS: Record<string, string> = {
+  confirmed: "予約中",
+  done: "来店済",
+  cancelled: "キャンセル",
+  noshow: "来店なし",
+};
 
 const fmtDateTime = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
 
@@ -40,7 +48,11 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 export default async function FriendDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [detail, allTags] = await Promise.all([getFriendDetail(id), listTags()]);
+  const [detail, allTags, reservations] = await Promise.all([
+    getFriendDetail(id),
+    listTags(),
+    getFriendReservations(id),
+  ]);
   if (!detail) notFound();
 
   const { friend, lineAccountName, tags, formHistory, surveyHistory } = detail;
@@ -159,6 +171,27 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
               ))
             ) : (
               <p className="text-sm text-muted">回答はありません。</p>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="予約履歴" description={`${reservations.length} 件`} />
+          <div className="p-5">
+            {reservations.length ? (
+              <ul className="space-y-2">
+                {reservations.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-ink">
+                      {fmtDateTime(r.startAt)}
+                      {r.menuName && <span className="ml-1 text-muted">／{r.menuName}</span>}
+                    </span>
+                    <span className="text-xs text-muted">{r.pageTitle}・{RES_STATUS[r.status] ?? r.status}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">予約はありません。</p>
             )}
           </div>
         </Card>

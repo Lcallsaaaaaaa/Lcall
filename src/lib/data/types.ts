@@ -433,6 +433,65 @@ export interface AdCode {
   createdAt: ISODate;
 }
 
+/** 予約ページ（予約表）。作成時に simple / menu を選ぶ。 */
+export type ReservationType = "simple" | "menu";
+export interface ReservationPage {
+  id: ID;
+  title: string;
+  /** simple=日時枠のみ / menu=メニュー（所要時間・料金）を選んでから日時 */
+  type: ReservationType;
+  description?: string;
+  /** 開始時刻の刻み（分）。例 30 */
+  slotMinutes: number;
+  /** simple のときの1枠の所要時間（分）。menu はメニュー側 duration を使う */
+  durationMinutes: number;
+  /** 1つの開始時刻あたりの定員 */
+  capacity: number;
+  /** 営業時間（24h・時）。open=10, close=19 など */
+  openHour: number;
+  closeHour: number;
+  /** 休業曜日（0=日 … 6=土） */
+  closedWeekdays: number[];
+  /** 何日先まで受け付けるか */
+  daysAhead: number;
+  /** 予約時に付与するタグ */
+  autoTagId?: ID;
+  /** 予約確定LINEメッセージ（{{name}} 使用可。空ならデフォルト文） */
+  confirmText?: string;
+  createdAt: ISODate;
+}
+
+/** 予約メニュー（type=menu のとき）。 */
+export interface ReservationMenu {
+  id: ID;
+  reservationPageId: ID;
+  name: string;
+  durationMinutes: number;
+  price?: number;
+  order: number;
+}
+
+/** 予約（1件の予約）。 */
+export interface Reservation {
+  id: ID;
+  reservationPageId: ID;
+  friendId?: ID;
+  menuId?: ID;
+  /** 予約開始/終了（ISO） */
+  startAt: ISODate;
+  endAt: ISODate;
+  status: "confirmed" | "cancelled" | "done" | "noshow";
+  /** 予約者の入力（LINE名と別に氏名・電話を取りたい場合） */
+  name?: string;
+  phone?: string;
+  note?: string;
+  /** 自己キャンセル用トークン */
+  cancelToken?: string;
+  /** リマインド送信済み時刻（重複防止） */
+  remindedAt?: ISODate;
+  createdAt: ISODate;
+}
+
 /** 広告コンバージョン送信ログ（Meta Conversions API / Google）。送信可否・結果の可視化と重複防止用。 */
 export interface ConversionLog {
   id: ID;
@@ -643,6 +702,9 @@ export interface EntityMap {
   mediaAssets: MediaAsset;
   storedImages: StoredImage;
   conversionLogs: ConversionLog;
+  reservationPages: ReservationPage;
+  reservationMenus: ReservationMenu;
+  reservations: Reservation;
   systemSettings: SystemSetting;
   // コントロールプレーン（運営DBのみ使用）
   clientAccounts: ClientAccount;

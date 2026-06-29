@@ -1,0 +1,199 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
+import { getDataProvider } from "@/lib/data/provider";
+import type { Reservation, ReservationType } from "@/lib/data/types";
+import { isRealToken, pushText } from "@/lib/line";
+import { applyNameVars } from "@/lib/vars";
+
+function str(v: FormDataEntryValue | null): string {
+  return (v == null ? "" : String(v)).trim();
+}
+function num(v: FormDataEntryValue | null, fallback: number): number {
+  const n = Number(str(v));
+  return Number.isFinite(n) ? n : fallback;
+}
+function uid(p: string): string {
+  return `${p}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+}
+
+async function requireOwner() {
+  const session = await getSession();
+  if (!session || session.role !== "owner") throw new Error("forbidden");
+}
+
+const fmtJa = (iso: string) => {
+  const d = new Date(iso);
+  const wd = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()}(${wd}) ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+// ---- 管理：予約ページ ----
+
+export async function createReservationPage(formData: FormData) {
+  await requireOwner();
+  const db = getDataProvider();
+  const type: ReservationType = str(formData.get("type")) === "menu" ? "menu" : "simple";
+  const id = uid("rp");
+  await db.reservationPages.create({
+    id,
+    title: str(formData.get("title")) || "予約",
+    type,
+    description: str(formData.get("description")) || undefined,
+    slotMinutes: num(formData.get("slotMinutes"), 30),
+    durationMinutes: num(formData.get("durationMinutes"), 30),
+    capacity: Math.max(1, num(formData.get("capacity"), 1)),
+    openHour: num(formData.get("openHour"), 10),
+    closeHour: num(formData.get("closeHour"), 19),
+    closedWeekdays: formData.getAll("closedWeekdays").map((v) => Number(v)).filter((n) => n >= 0 && n <= 6),
+    daysAhead: Math.max(1, num(formData.get("daysAhead"), 30)),
+    createdAt: new Date().toISOString(),
+  });
+  revalidatePath("/reservations");
+  redirect(`/reservations/${id}`);
+}
+
+export async function updateReservationPage(id: string, formData: FormData) {
+  await requireOwner();
+  const db = getDataProvider();
+  await db.reservationPages.update(id, {
+    title: str(formData.get("title")) || "予約",
+    description: str(formData.get("description")) || undefined,
+    slotMinutes: num(formData.get("slotMinutes"), 30),
+    durationMinutes: num(formData.get("durationMinutes"), 30),
+    capacity: Math.max(1, num(formData.get("capacity"), 1)),
+    openHour: num(formData.get("openHour"), 10),
+    closeHour: num(formData.get("closeHour"), 19),
+    closedWeekdays: formData.getAll("closedWeekdays").map((v) => Number(v)).filter((n) => n >= 0 && n <= 6),
+    daysAhead: Math.max(1, num(formData.get("daysAhead"), 30)),
+    autoTagId: str(formData.get("autoTagId")) || undefined,
+    confirmText: str(formData.get("confirmText")) || undefined,
+  });
+  revalidatePath(`/reservations/${id}`);
+}
+
+export async function deleteReservationPage(id: string) {
+  await requireOwner();
+  const db = getDataProvider();
+  const [menus, reservations] = await Promise.all([
+    db.reservationMenus.list(),
+    db.reservations.list(),
+  ]);
+  await Promise.all(menus.filter((m) => m.reservationPageId === id).map((m) => db.reservationMenus.remove(m.id)));
+  await Promise.all(reservations.filter((r) => r.reservationPageId === id).map((r) => db.reservations.remove(r.id)));
+  await db.reservationPages.remove(id);
+  revalidatePath("/reservations");
+  redirect("/reservations");
+}
+
+export async function addReservationMenu(pageId: string, formData: FormData) {
+  await requireOwner();
+  const db = getDataProvider();
+  const existing = (await db.reservationMenus.list()).filter((m) => m.reservationPageId === pageId);
+  await db.reservationMenus.create({
+    id: uid("rm"),
+    reservationPageId: pageId,
+    name: str(formData.get("name")) || "メニュー",
+    durationMinutes: Math.max(5, num(formData.get("durationMinutes"), 60)),
+    price: str(formData.get("price")) ? num(formData.get("price"), 0) : undefined,
+    order: existing.length,
+  });
+  revalidatePath(`/reservations/${pageId}`);
+}
+
+export async function removeReservationMenu(menuId: string, pageId: string) {
+  await requireOwner();
+  await getDataProvider().reservationMenus.remove(menuId);
+  revalidatePath(`/reservations/${pageId}`);
+}
+
+export async function setReservationStatus(
+  reservationId: string,
+  pageId: string,
+  status: Reservation["status"]
+) {
+  await requireOwner();
+  await getDataProvider().reservations.update(reservationId, { status });
+  revalidatePath(`/reservations/${pageId}`);
+}
+
+// ---- 公開：予約する（認証不要・公開予約ページから） ----
+
+export async function createReservation(pageId: string, formData: FormData) {
+  const db = getDataProvider();
+  const page = await db.reservationPages.get(pageId);
+  if (!page) redirect(`/yoyaku/${pageId}`);
+
+  const startISO = str(formData.get("startISO"));
+  const start = new Date(startISO);
+  if (!startISO || Number.isNaN(start.getTime()) || start.getTime() <= Date.now()) {
+    redirect(`/yoyaku/${pageId}?error=slot`);
+  }
+  const friendId = str(formData.get("u")) || undefined;
+  const menuId = page.type === "menu" ? str(formData.get("menuId")) || undefined : undefined;
+  const menu = menuId ? await db.reservationMenus.get(menuId) : null;
+  if (page.type === "menu" && !menu) redirect(`/yoyaku/${pageId}?error=menu`);
+
+  const durationMin = menu?.durationMinutes ?? page.durationMinutes;
+  const endMs = start.getTime() + durationMin * 60000;
+
+  // 定員の最終チェック（二重予約・満枠を防ぐ）
+  const overlap = (await db.reservations.list()).filter(
+    (r) =>
+      r.reservationPageId === pageId &&
+      r.status === "confirmed" &&
+      new Date(r.startAt).getTime() < endMs &&
+      start.getTime() < new Date(r.endAt).getTime()
+  ).length;
+  if (overlap >= page.capacity) redirect(`/yoyaku/${pageId}?error=full`);
+
+  const id = uid("rv");
+  await db.reservations.create({
+    id,
+    reservationPageId: pageId,
+    friendId,
+    menuId,
+    startAt: start.toISOString(),
+    endAt: new Date(endMs).toISOString(),
+    status: "confirmed",
+    name: str(formData.get("name")) || undefined,
+    phone: str(formData.get("phone")) || undefined,
+    note: str(formData.get("note")) || undefined,
+    cancelToken: Math.random().toString(36).slice(2, 12),
+    createdAt: new Date().toISOString(),
+  });
+
+  // 回答時タグ付与（予約時タグ）
+  if (page.autoTagId && friendId) {
+    const tags = await db.friendTags.list();
+    if (!tags.some((t) => t.friendId === friendId && t.tagId === page.autoTagId)) {
+      await db.friendTags.create({
+        id: uid("ft"),
+        friendId,
+        tagId: page.autoTagId,
+        auto: true,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  // LINE 予約確定メッセージ（実トークン時のみ送信）
+  if (friendId) {
+    const friend = await db.friends.get(friendId);
+    const account = friend ? await db.lineAccounts.get(friend.lineAccountId) : null;
+    if (friend && account && isRealToken(account.channelAccessToken)) {
+      const head = page.confirmText
+        ? applyNameVars(page.confirmText, friend.displayName)
+        : `ご予約を承りました。`;
+      const lines = [head, `日時：${fmtJa(start.toISOString())}`];
+      if (menu) lines.push(`メニュー：${menu.name}`);
+      await pushText(account.channelAccessToken, friend.lineUserId, lines.join("\n"));
+    }
+  }
+
+  revalidatePath(`/reservations/${pageId}`);
+  redirect(`/yoyaku/${pageId}?submitted=1`);
+}

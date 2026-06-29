@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import { processDueBroadcasts } from "@/features/broadcasts/deliver";
+import { processReservationReminders } from "@/features/reservations/reminders";
 import { processScenarios } from "@/features/scenarios/process";
 import { purgeExpiredChatImages } from "@/lib/storage";
 import { workerKey } from "@/lib/tracking";
@@ -21,6 +22,13 @@ async function run(request: Request) {
   const db = getDataProvider();
   const result = await processScenarios(db);
   const broadcasts = await processDueBroadcasts(db);
+  // 予約リマインド（開始24時間前以内・未送信）。失敗しても他の処理は止めない。
+  let remindersSent = 0;
+  try {
+    remindersSent = (await processReservationReminders(db)).reminded;
+  } catch {
+    // noop
+  }
   // 受信画像の保存期間切れを自動削除（LCALL_IMAGE_RETENTION_DAYS。内部で12時間に1回へ間引く）
   let imagesPurged = 0;
   try {
@@ -37,6 +45,7 @@ async function run(request: Request) {
     ...result,
     broadcastsSent: broadcasts.count,
     imagesPurged,
+    remindersSent,
   });
 }
 
