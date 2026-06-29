@@ -19,11 +19,18 @@ function isoFromUnix(sec: unknown): string | undefined {
  * LINE Developers ではなく Stripe ダッシュボード／CLI でこのURLを Webhook 登録する。
  */
 export async function POST(request: Request) {
-  const secret = (process.env.STRIPE_WEBHOOK_SECRET ?? "").trim();
-  if (!secret) return new Response("STRIPE_WEBHOOK_SECRET 未設定", { status: 500 });
+  const db = getDataProvider();
+  // クライアント自身のWebhookシークレット（決済設定・予約決済用）と env（システム料billing用）の両方で検証
+  const clientSecret = (await db.systemSettings.list()).find((s) => s.key === "stripe_webhook_secret")?.value?.trim();
+  const envSecret = (process.env.STRIPE_WEBHOOK_SECRET ?? "").trim();
+  if (!clientSecret && !envSecret) return new Response("Webhookシークレット未設定", { status: 500 });
 
   const raw = await request.text();
-  if (!verifyStripeSignature(raw, request.headers.get("stripe-signature"), secret)) {
+  const sig = request.headers.get("stripe-signature");
+  const verified =
+    (clientSecret && verifyStripeSignature(raw, sig, clientSecret)) ||
+    (envSecret && verifyStripeSignature(raw, sig, envSecret));
+  if (!verified) {
     return new Response("invalid signature", { status: 400 });
   }
 
@@ -34,7 +41,6 @@ export async function POST(request: Request) {
     return new Response("bad json", { status: 400 });
   }
 
-  const db = getDataProvider();
   const obj = event?.data?.object ?? {};
 
   async function getOrCreateCustomer(stripeCustomerId?: string): Promise<BillingCustomer> {

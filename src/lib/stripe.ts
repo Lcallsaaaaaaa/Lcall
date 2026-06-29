@@ -49,14 +49,16 @@ export interface StripeResult<T = any> {
   error?: string;
 }
 
-/** Stripe API 呼び出し。GET は body をクエリに、POST は form body に。 */
+/** Stripe API 呼び出し。GET は body をクエリに、POST は form body に。
+ *  keyOverride を渡すと env ではなくそのキーで呼ぶ（クライアント自身のStripeキー用）。 */
 export async function stripe<T = any>(
   method: "GET" | "POST",
   path: string,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
+  keyOverride?: string
 ): Promise<StripeResult<T>> {
-  const key = stripeSecretKey();
-  if (!key) return { ok: false, status: 0, data: null, error: "STRIPE_SECRET_KEY 未設定" };
+  const key = keyOverride?.trim() || stripeSecretKey();
+  if (!key) return { ok: false, status: 0, data: null, error: "Stripe シークレットキー未設定" };
   try {
     const qs = body ? toForm(body) : "";
     const url = method === "GET" && qs ? `${STRIPE_API}${path}?${qs}` : `${STRIPE_API}${path}`;

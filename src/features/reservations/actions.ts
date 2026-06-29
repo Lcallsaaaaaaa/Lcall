@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import type { Reservation, ReservationPage, ReservationType } from "@/lib/data/types";
-import { stripe, stripeEnabled } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
 import { publicBaseUrl } from "@/lib/url";
 import { finalizeReservationConfirmed } from "./finalize";
 import { notifyReservation } from "./notify";
+import { clientStripeSecretKey } from "./payments";
 
 function str(v: FormDataEntryValue | null): string {
   return (v == null ? "" : String(v)).trim();
@@ -32,12 +33,14 @@ function withinChangeDeadline(r: Reservation, page: ReservationPage, now = Date.
   return now <= deadline;
 }
 
-/** 支払い済みなら Stripe で全額返金する（キャンセル時）。 */
+/** 支払い済みなら Stripe で全額返金する（キャンセル時）。クライアント自身のStripeキーで返金。 */
 async function refundIfPaid(r: Reservation): Promise<void> {
-  if (r.paymentStatus === "paid" && r.stripePaymentIntentId && stripeEnabled()) {
-    const res = await stripe("POST", "/refunds", { payment_intent: r.stripePaymentIntentId });
-    if (res.ok) await getDataProvider().reservations.update(r.id, { paymentStatus: "refunded" });
-  }
+  if (r.paymentStatus !== "paid" || !r.stripePaymentIntentId) return;
+  const db = getDataProvider();
+  const key = await clientStripeSecretKey(db);
+  if (!key) return;
+  const res = await stripe("POST", "/refunds", { payment_intent: r.stripePaymentIntentId }, key);
+  if (res.ok) await db.reservations.update(r.id, { paymentStatus: "refunded" });
 }
 
 // ---- 管理：予約ページ ----
@@ -264,7 +267,8 @@ export async function createReservation(pageId: string, formData: FormData) {
     (p): p is number => typeof p === "number"
   );
   const amount = priceParts.reduce((s, p) => s + p, 0);
-  const isPrepay = page.paymentMode === "prepay" && stripeEnabled() && amount > 0;
+  const stripeKey = await clientStripeSecretKey(db);
+  const isPrepay = page.paymentMode === "prepay" && !!stripeKey && amount > 0;
 
   const id = uid("rv");
   const cancelToken = Math.random().toString(36).slice(2, 12);
@@ -302,7 +306,7 @@ export async function createReservation(pageId: string, formData: FormData) {
       "line_items[0][price_data][currency]": "jpy",
       "line_items[0][price_data][unit_amount]": amount,
       "line_items[0][price_data][product_data][name]": itemName,
-    });
+    }, stripeKey);
     if (session.ok && session.data?.url && session.data?.id) {
       await db.reservations.update(id, { stripeSessionId: String(session.data.id) });
       redirect(String(session.data.url));

@@ -89,7 +89,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "billing", label: "契約・請求", href: "/billing", icon: CreditCard, ready: true },
       { key: "staff", label: "スタッフ管理", href: "/staff", icon: UserCog, ready: true },
-      { key: "settings", label: "設定", href: "/settings", icon: Settings, ready: false },
+      { key: "settings", label: "設定", href: "/settings", icon: Settings, ready: true },
     ],
   },
 ];
