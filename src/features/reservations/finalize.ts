@@ -43,11 +43,12 @@ export async function finalizeReservationConfirmed(
     }
   }
 
-  // 予約者へ確定LINE（実トークン時）
+  // 予約者へ確定の連絡：チャット履歴に out として記録（スタッフが送信内容を確認できる）し、
+  // 実トークンがあれば実際に LINE 送信もする（ダミートークンのデモ環境では記録のみ）。
   if (r.friendId) {
     const friend = await db.friends.get(r.friendId);
     const account = friend ? await db.lineAccounts.get(friend.lineAccountId) : null;
-    if (friend && account && isRealToken(account.channelAccessToken)) {
+    if (friend) {
       const menus = await db.reservationMenus.list();
       const menu = r.menuId ? menus.find((m) => m.id === r.menuId) : null;
       const opts = (r.optionIds ?? [])
@@ -71,7 +72,20 @@ export async function finalizeReservationConfirmed(
       if (base && r.cancelToken) {
         lines.push(`\nご予約の確認・キャンセルはこちら：\n${base}/yoyaku/${r.reservationPageId}/cancel?r=${r.id}&t=${r.cancelToken}`);
       }
-      await pushText(account.channelAccessToken, friend.lineUserId, lines.join("\n"));
+      const text = lines.join("\n");
+      // チャットに送信ログを残す（スタッフが「確認LINEを送ったか」を受信箱で確認できる）
+      await db.chatMessages.create({
+        id: uid("cm"),
+        friendId: friend.id,
+        direction: "out",
+        text,
+        staffName: "予約システム",
+        read: true,
+        createdAt: new Date().toISOString(),
+      });
+      if (account && isRealToken(account.channelAccessToken)) {
+        await pushText(account.channelAccessToken, friend.lineUserId, text);
+      }
     }
   }
 
