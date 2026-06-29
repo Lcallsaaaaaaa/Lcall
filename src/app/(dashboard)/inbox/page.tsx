@@ -33,6 +33,13 @@ function fmtTime(s: string): string {
   return d.toDateString() === now.toDateString() ? hm : `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
 }
 
+/** 登録日からの経過日数（本日=0日）。 */
+function daysSince(s?: string): string {
+  if (!s) return "—";
+  const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
+  return d <= 0 ? "本日" : `${d}日`;
+}
+
 export default async function InboxPage({
   searchParams,
 }: {
@@ -52,6 +59,7 @@ export default async function InboxPage({
     ]);
   const formHistory = friendDetail?.formHistory ?? [];
   const surveyHistory = friendDetail?.surveyHistory ?? [];
+  const friendPhone = friendDetail?.phone;
   const RES_STATUS: Record<string, string> = {
     pending: "支払い待ち",
     confirmed: "予約中",
@@ -267,6 +275,10 @@ export default async function InboxPage({
               <dd className="truncate font-mono text-xs text-ink">{thread.friend.lineUserId}</dd>
             </div>
             <div className="flex justify-between gap-2">
+              <dt className="text-muted">電話番号</dt>
+              <dd className="text-ink">{friendPhone ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
               <dt className="text-muted">登録LINE</dt>
               <dd className="text-ink">{thread.lineAccountName ?? "—"}</dd>
             </div>
@@ -277,6 +289,10 @@ export default async function InboxPage({
             <div className="flex justify-between gap-2">
               <dt className="text-muted">登録日</dt>
               <dd className="text-ink">{new Date(thread.friend.registeredAt).toLocaleDateString("ja-JP")}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-muted">登録からの日数</dt>
+              <dd className="text-ink">{daysSince(thread.friend.registeredAt)}</dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-muted">LTV</dt>

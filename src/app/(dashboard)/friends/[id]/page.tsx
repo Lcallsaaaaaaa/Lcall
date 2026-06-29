@@ -21,6 +21,13 @@ const RES_STATUS: Record<string, string> = {
 
 const fmtDateTime = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
 
+/** 登録日からの経過日数（本日=0日）。 */
+const daysSince = (s?: string) => {
+  if (!s) return "—";
+  const d = Math.floor((Date.now() - new Date(s).getTime()) / 86400000);
+  return d <= 0 ? "本日" : `${d}日`;
+};
+
 function AnswerList({ answers }: { answers: AnswerItem[] }) {
   if (answers.length === 0) {
     return <p className="px-3 pb-3 text-xs text-muted">回答項目がありません。</p>;
@@ -55,7 +62,7 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
   ]);
   if (!detail) notFound();
 
-  const { friend, lineAccountName, tags, formHistory, surveyHistory } = detail;
+  const { friend, lineAccountName, phone, tags, formHistory, surveyHistory } = detail;
   const assignedIds = new Set(tags.map((t) => t.tag.id));
   const availableTags = allTags.filter((t) => !assignedIds.has(t.id));
 
@@ -81,8 +88,10 @@ export default async function FriendDetailPage({ params }: { params: Promise<{ i
             <InfoRow label="LINEユーザーID">
               <span className="font-mono text-xs">{friend.lineUserId}</span>
             </InfoRow>
+            <InfoRow label="電話番号">{phone ?? "—"}</InfoRow>
             <InfoRow label="登録LINE">{lineAccountName}</InfoRow>
             <InfoRow label="登録日時">{fmtDateTime(friend.registeredAt)}</InfoRow>
+            <InfoRow label="登録からの日数">{daysSince(friend.registeredAt)}</InfoRow>
             <InfoRow label="最終クリック">{fmtDateTime(friend.lastClickAt)}</InfoRow>
             <InfoRow label="LTV">¥{friend.ltv.toLocaleString()}</InfoRow>
           </div>

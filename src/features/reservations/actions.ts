@@ -223,13 +223,17 @@ export async function createReservation(pageId: string, formData: FormData) {
   let friendId = str(formData.get("u")) || undefined;
   let friend = friendId ? await db.friends.get(friendId) : null;
   const phone = str(formData.get("phone")) || undefined;
-  // ?u が無い（直リンク）予約でも、電話番号が過去の紐づけ済み記録と一致すれば
-  // 既存の友だちへ自動マッチして紐づける（簡易マッチ・誤一致時は紐づけない）。
-  if (!friend && phone) {
-    const matched = await matchFriendByPhone(db, phone, page.lineAccountId);
-    if (matched) {
-      friend = matched;
-      friendId = matched.id;
+  // ?u が実在の友だちに解決しない場合（例：未置換の "{friendId}" プレースホルダや
+  // 退会済みID）は、そのゴミ値を friendId に保存しない。代わりに電話番号で
+  // 既存の友だちへ自動マッチを試みる（誤一致時は紐づけない）。
+  if (!friend) {
+    friendId = undefined;
+    if (phone) {
+      const matched = await matchFriendByPhone(db, phone, page.lineAccountId);
+      if (matched) {
+        friend = matched;
+        friendId = matched.id;
+      }
     }
   }
   const menuId = page.type === "menu" ? str(formData.get("menuId")) || undefined : undefined;

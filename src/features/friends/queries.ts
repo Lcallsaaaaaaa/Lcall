@@ -112,6 +112,8 @@ export interface FriendSurveyHistory {
 export interface FriendDetail {
   friend: Friend;
   lineAccountName: string;
+  /** 予約(Reservation.phone)・フォームtel回答 から拾った電話番号（最新を採用。無ければ undefined） */
+  phone?: string;
   tags: FriendTagRef[];
   formHistory: FriendFormHistory[];
   surveyHistory: FriendSurveyHistory[];
@@ -122,7 +124,7 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
   const friend = await db.friends.get(id);
   if (!friend) return null;
 
-  const [accounts, tags, friendTags, forms, formFields, formResponses, surveys, surveyQuestions, surveyResponses] =
+  const [accounts, tags, friendTags, forms, formFields, formResponses, surveys, surveyQuestions, surveyResponses, reservations] =
     await Promise.all([
       db.lineAccounts.list(),
       db.tags.list(),
@@ -133,7 +135,23 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
       db.surveys.list(),
       db.surveyQuestions.list(),
       db.surveyResponses.list(),
+      db.reservations.list(),
     ]);
+
+  // 電話番号：この友だちの予約／フォームtel回答 から最新のものを採用
+  const telFieldIds = new Set(formFields.filter((f) => f.type === "tel").map((f) => f.id));
+  const phoneCandidates: { phone: string; at: string }[] = [];
+  for (const r of reservations) {
+    if (r.friendId === id && r.phone) phoneCandidates.push({ phone: r.phone, at: r.createdAt });
+  }
+  for (const r of formResponses) {
+    if (r.friendId !== id) continue;
+    for (const [k, v] of Object.entries(r.values)) {
+      if (telFieldIds.has(k) && v) phoneCandidates.push({ phone: String(v), at: r.createdAt });
+    }
+  }
+  phoneCandidates.sort((a, b) => (a.at < b.at ? 1 : -1));
+  const phone = phoneCandidates[0]?.phone;
 
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const formTitle = new Map(forms.map((f) => [f.id, f.title]));
@@ -162,6 +180,7 @@ export async function getFriendDetail(id: string): Promise<FriendDetail | null> 
   return {
     friend,
     lineAccountName: accounts.find((a) => a.id === friend.lineAccountId)?.name ?? friend.lineAccountId,
+    phone,
     tags: friendTagRefs,
     formHistory: formResponses
       .filter((r) => r.friendId === id)
