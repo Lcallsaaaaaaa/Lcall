@@ -41,6 +41,8 @@ export interface PlanDef {
   name: string;
   /** 接続できるLINE公式アカウント数（有効数の技術的上限・§10） */
   lineLimit: number;
+  /** 追加できるスタッフ（db.users＝admin/staff等）の上限。初期オーナー(env)は別枠で常に可。 */
+  staffLimit: number;
   /** プラン別の月額料金（円） */
   monthlyFee: number;
   /** このプランに含まれる機能 */
@@ -62,6 +64,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     code: "lite",
     name: "Lite",
     lineLimit: 5,
+    staffLimit: 3,
     monthlyFee: 9800,
     features: ["broadcast", "scenario", "forms", "chat", "aiCharacter", "richMenu"],
     affiliateRate: 0,
@@ -70,6 +73,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     code: "standard",
     name: "Standard",
     lineLimit: 20,
+    staffLimit: 3,
     monthlyFee: 14800,
     features: [
       "broadcast",
@@ -89,6 +93,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     code: "pro",
     name: "Pro",
     lineLimit: 50,
+    staffLimit: 3,
     monthlyFee: 19800,
     features: [
       "broadcast",

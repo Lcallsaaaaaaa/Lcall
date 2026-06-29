@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { FormField, Input, Select } from "@/components/ui/Form";
 import { Badge } from "@/components/ui/StatusBadge";
+import { PLANS } from "@/config/plans";
+import { getCurrentPlan } from "@/features/line-accounts/queries";
 import { createStaff, deleteStaff, updateStaff } from "@/features/users/actions";
 import { listUsers } from "@/features/users/queries";
 import { ROLE_LABELS, ROLE_OPTIONS } from "@/lib/roles";
@@ -15,6 +17,7 @@ const NOTICES: Record<string, { tone: "ok" | "danger"; text: string }> = {
 const ERRORS: Record<string, string> = {
   missing: "メールアドレスと初期パスワードは必須です。",
   dup: "そのメールアドレスは既に登録されています。",
+  limit: "スタッフ数の上限に達しています。追加するには既存スタッフを削除してください。",
 };
 
 const fmtDate = (s: string) => new Date(s).toLocaleDateString("ja-JP");
@@ -25,7 +28,9 @@ export default async function StaffPage({
   searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   const sp = await searchParams;
-  const users = await listUsers();
+  const [users, plan] = await Promise.all([listUsers(), getCurrentPlan()]);
+  const staffLimit = PLANS[plan].staffLimit;
+  const atLimit = users.length >= staffLimit;
   const notice = sp.ok ? NOTICES[sp.ok] : sp.error ? { tone: "danger" as const, text: ERRORS[sp.error] ?? "エラー" } : null;
 
   return (
@@ -55,7 +60,12 @@ export default async function StaffPage({
       </Card>
 
       <Card className="mb-5">
-        <CardHeader title="スタッフを追加" />
+        <CardHeader title="スタッフを追加" description={`${users.length} / ${staffLimit} 名（${PLANS[plan].name}プラン）`} />
+        {atLimit ? (
+          <p className="px-5 py-4 text-sm text-muted">
+            スタッフ数の上限（{staffLimit}名）に達しています。追加するには既存スタッフを削除するか、上位プランへの変更をご検討ください。
+          </p>
+        ) : (
         <form action={createStaff} className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
           <FormField label="メールアドレス" htmlFor="email" required>
             <Input id="email" name="email" type="email" required placeholder="staff@example.com" />
@@ -82,10 +92,11 @@ export default async function StaffPage({
             </Button>
           </div>
         </form>
+        )}
       </Card>
 
       <Card>
-        <CardHeader title="登録スタッフ" description={`${users.length}人（ログイン可能なアカウント）`} />
+        <CardHeader title="登録スタッフ" description={`${users.length} / ${staffLimit} 名（ログイン可能なアカウント・初期オーナーは別枠）`} />
         {users.length === 0 ? (
           <p className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-muted">
             <UserCog className="size-4" /> まだスタッフがいません。

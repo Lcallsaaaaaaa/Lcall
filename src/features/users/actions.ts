@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { PLANS } from "@/config/plans";
 import { hashPassword } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import type { Role, User } from "@/lib/data/types";
 import { requireNav } from "@/lib/guard";
+import { getCurrentPlan } from "@/features/line-accounts/queries";
 
 function str(v: FormDataEntryValue | null): string {
   return (v == null ? "" : String(v)).trim();
@@ -29,6 +31,11 @@ export async function createStaff(formData: FormData) {
   const existing = await db.users.list();
   if (existing.some((u) => u.email.trim().toLowerCase() === email)) {
     redirect("/staff?error=dup");
+  }
+  // プラン別のスタッフ上限（全プラン3）。初期オーナー(env)は別枠。
+  const limit = PLANS[await getCurrentPlan()].staffLimit;
+  if (existing.length >= limit) {
+    redirect("/staff?error=limit");
   }
   await db.users.create({
     id: uid(),
