@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
-import type { Reservation, ReservationType } from "@/lib/data/types";
+import type { Reservation, ReservationPage, ReservationType } from "@/lib/data/types";
 import { stripe, stripeEnabled } from "@/lib/stripe";
 import { publicBaseUrl } from "@/lib/url";
 import { finalizeReservationConfirmed } from "./finalize";
@@ -24,6 +24,12 @@ function uid(p: string): string {
 async function requireOwner() {
   const session = await getSession();
   if (!session || session.role !== "owner") throw new Error("forbidden");
+}
+
+/** 変更・キャンセルの受付期限内か（開始の changeDeadlineHours 時間前まで）。 */
+function withinChangeDeadline(r: Reservation, page: ReservationPage, now = Date.now()): boolean {
+  const deadline = new Date(r.startAt).getTime() - (page.changeDeadlineHours ?? 0) * 3600000;
+  return now <= deadline;
 }
 
 /** 支払い済みなら Stripe で全額返金する（キャンセル時）。 */
@@ -75,6 +81,7 @@ export async function updateReservationPage(id: string, formData: FormData) {
     closeHour: num(formData.get("closeHour"), 19),
     closedWeekdays: formData.getAll("closedWeekdays").map((v) => Number(v)).filter((n) => n >= 0 && n <= 6),
     daysAhead: Math.max(1, num(formData.get("daysAhead"), 30)),
+    changeDeadlineHours: Math.max(0, num(formData.get("changeDeadlineHours"), 0)),
     autoTagId: str(formData.get("autoTagId")) || undefined,
     confirmText: str(formData.get("confirmText")) || undefined,
     joinText: str(formData.get("joinText")) || undefined,
@@ -96,6 +103,28 @@ export async function deleteReservationPage(id: string) {
   await db.reservationPages.remove(id);
   revalidatePath("/reservations");
   redirect("/reservations");
+}
+
+/**
+ * 予約ページを複製（設定・メニュー・オプションをコピー。予約データはコピーしない）。
+ * 新店舗の公式LINE追加時に、既存のカレンダー設定を流用して素早く立ち上げる用途。
+ * 複製後の詳細画面で「対象の公式アカウント」を新店舗に切り替える。
+ */
+export async function duplicateReservationPage(id: string) {
+  await requireOwner();
+  const db = getDataProvider();
+  const src = await db.reservationPages.get(id);
+  if (!src) redirect("/reservations");
+  const newId = uid("rp");
+  const now = new Date().toISOString();
+  await db.reservationPages.create({ ...src, id: newId, title: `${src.title}（コピー）`, createdAt: now });
+  // メニュー/オプションも複製
+  const menus = (await db.reservationMenus.list()).filter((m) => m.reservationPageId === id);
+  for (const m of menus) {
+    await db.reservationMenus.create({ ...m, id: uid(m.kind === "option" ? "ro" : "rm"), reservationPageId: newId });
+  }
+  revalidatePath("/reservations");
+  redirect(`/reservations/${newId}`);
 }
 
 export async function addReservationMenu(pageId: string, formData: FormData) {
@@ -267,6 +296,11 @@ export async function cancelReservationPublic(pageId: string, formData: FormData
   if (!r || r.reservationPageId !== pageId || !r.cancelToken || r.cancelToken !== token) {
     redirect(`/yoyaku/${pageId}/cancel?r=${rid}&t=${token}&error=invalid`);
   }
+  // 受付期限を過ぎていたら不可
+  const page = await db.reservationPages.get(pageId);
+  if (page && !withinChangeDeadline(r, page)) {
+    redirect(`/yoyaku/${pageId}/cancel?r=${rid}&t=${token}&error=deadline`);
+  }
   if (r.status === "confirmed") {
     await db.reservations.update(r.id, { status: "cancelled" });
     await refundIfPaid(r); // 支払い済みは自動で全額返金
@@ -275,4 +309,46 @@ export async function cancelReservationPublic(pageId: string, formData: FormData
     revalidatePath(`/reservations/${pageId}`);
   }
   redirect(`/yoyaku/${pageId}/cancel?r=${rid}&t=${token}&done=1`);
+}
+
+/** 公開：本人による日時変更（リスケ）。トークン必須・受付期限内のみ。 */
+export async function rescheduleReservation(pageId: string, formData: FormData) {
+  const db = getDataProvider();
+  const rid = str(formData.get("r"));
+  const token = str(formData.get("t"));
+  const startISO = str(formData.get("startISO"));
+  const r = rid ? await db.reservations.get(rid) : null;
+  const page = await db.reservationPages.get(pageId);
+  if (!r || !page || r.reservationPageId !== pageId || !r.cancelToken || r.cancelToken !== token) {
+    redirect(`/yoyaku/${pageId}/change?r=${rid}&t=${token}&error=invalid`);
+  }
+  if (r.status !== "confirmed" || !withinChangeDeadline(r, page)) {
+    redirect(`/yoyaku/${pageId}/change?r=${rid}&t=${token}&error=deadline`);
+  }
+  const start = new Date(startISO);
+  if (!startISO || Number.isNaN(start.getTime()) || start.getTime() <= Date.now()) {
+    redirect(`/yoyaku/${pageId}/change?r=${rid}&t=${token}&error=slot`);
+  }
+  // 所要時間（メニュー＋オプション）で終了時刻を再計算
+  const menus = await db.reservationMenus.list();
+  const dur =
+    (r.menuId ? (menus.find((m) => m.id === r.menuId)?.durationMinutes ?? page.durationMinutes) : page.durationMinutes) +
+    (r.optionIds ?? []).reduce((s, oid) => s + (menus.find((m) => m.id === oid)?.durationMinutes ?? 0), 0);
+  const endMs = start.getTime() + dur * 60000;
+  // 新しい枠の定員チェック（自分自身は除外）
+  const overlap = (await db.reservations.list()).filter(
+    (x) =>
+      x.id !== r.id &&
+      x.reservationPageId === pageId &&
+      x.status === "confirmed" &&
+      new Date(x.startAt).getTime() < endMs &&
+      start.getTime() < new Date(x.endAt).getTime()
+  ).length;
+  if (overlap >= page.capacity) {
+    redirect(`/yoyaku/${pageId}/change?r=${rid}&t=${token}&error=full`);
+  }
+  await db.reservations.update(r.id, { startAt: start.toISOString(), endAt: new Date(endMs).toISOString() });
+  await finalizeReservationConfirmed(db, r.id, "changed"); // 変更確定LINE＋店舗通知
+  revalidatePath(`/reservations/${pageId}`);
+  redirect(`/yoyaku/${pageId}/change?r=${rid}&t=${token}&done=1`);
 }

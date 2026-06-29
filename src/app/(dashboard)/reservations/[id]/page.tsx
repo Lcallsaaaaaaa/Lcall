@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Download, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button, buttonClasses } from "@/components/ui/Button";
@@ -9,6 +9,7 @@ import {
   addReservationMenu,
   addReservationOption,
   deleteReservationPage,
+  duplicateReservationPage,
   removeReservationMenu,
   setReservationStatus,
   updateReservationPage,
@@ -54,6 +55,12 @@ export default async function ReservationDetailPage({ params }: { params: Promis
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-ink">{page.title}</h1>
         <Badge tone={page.type === "menu" ? "info" : "neutral"}>{page.type === "menu" ? "メニュー型" : "シンプル"}</Badge>
+        <form action={duplicateReservationPage.bind(null, id)} className="ml-auto">
+          <button type="submit" className={buttonClasses("outline", "sm")} title="設定・メニューをコピーして新しい予約ページを作成">
+            <Copy className="size-4" />
+            複製
+          </button>
+        </form>
       </div>
 
       {/* 公開URL */}
@@ -129,6 +136,9 @@ export default async function ReservationDetailPage({ params }: { params: Promis
             )}
             <FormField label="何日先まで" htmlFor="daysAhead">
               <Input id="daysAhead" name="daysAhead" type="number" min={1} defaultValue={page.daysAhead} />
+            </FormField>
+            <FormField label="変更/取消の受付期限" htmlFor="changeDeadlineHours" hint="開始の何時間前まで可。0=直前まで">
+              <Input id="changeDeadlineHours" name="changeDeadlineHours" type="number" min={0} defaultValue={page.changeDeadlineHours ?? 0} />
             </FormField>
             <FormField label="予約時に付与するタグ" htmlFor="autoTagId">
               <Select id="autoTagId" name="autoTagId" defaultValue={page.autoTagId ?? ""}>

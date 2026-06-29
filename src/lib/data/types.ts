@@ -458,6 +458,8 @@ export interface ReservationPage {
   closedWeekdays: number[];
   /** 何日先まで受け付けるか */
   daysAhead: number;
+  /** 変更・キャンセルの受付期限（開始の何時間前まで可。未設定/0=開始直前まで可） */
+  changeDeadlineHours?: number;
   /** 予約時に付与するタグ */
   autoTagId?: ID;
   /** 予約確定LINEメッセージ（{{name}} 使用可。空ならデフォルト文） */

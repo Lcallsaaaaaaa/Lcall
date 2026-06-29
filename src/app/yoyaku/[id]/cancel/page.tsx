@@ -45,6 +45,16 @@ export default async function CancelReservationPage({
     );
   }
 
+  if (sp.error === "deadline") {
+    return (
+      <Box>
+        <AlertTriangle className="mx-auto size-10 text-warn" />
+        <h1 className="mt-3 text-center text-xl font-semibold text-ink">変更・キャンセルの受付は終了しました</h1>
+        <p className="mt-1 text-center text-sm text-muted">お手数ですが店舗までご連絡ください。</p>
+      </Box>
+    );
+  }
+
   if (sp.done || reservation.status === "cancelled") {
     return (
       <Box>
@@ -68,11 +78,17 @@ export default async function CancelReservationPage({
           </p>
         )}
       </div>
-      <p className="mt-4 text-center text-sm text-muted">この予約をキャンセルしますか？</p>
-      <form action={cancelReservationPublic.bind(null, id)} className="mt-5">
+      <a
+        href={`/yoyaku/${id}/change?r=${reservation.id}&t=${encodeURIComponent(sp.t ?? "")}`}
+        className={buttonClasses("outline", "lg", "mt-5 w-full")}
+      >
+        日時を変更する
+      </a>
+      <p className="mt-5 text-center text-sm text-muted">またはこの予約をキャンセルしますか？</p>
+      <form action={cancelReservationPublic.bind(null, id)} className="mt-3">
         <input type="hidden" name="r" value={reservation.id} />
         <input type="hidden" name="t" value={sp.t ?? ""} />
-        <button type="submit" className={buttonClasses("gradient", "lg", "w-full")}>
+        <button type="submit" className="w-full rounded-lg border border-danger/40 px-4 py-2.5 text-sm font-medium text-danger transition hover:bg-danger-bg">
           キャンセルする
         </button>
       </form>

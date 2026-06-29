@@ -19,7 +19,7 @@ function fmtJa(iso: string): string {
 export async function notifyReservation(
   db: DataProvider,
   reservation: Reservation,
-  kind: "created" | "cancelled"
+  kind: "created" | "cancelled" | "changed"
 ): Promise<void> {
   const page = await db.reservationPages.get(reservation.reservationPageId);
   if (!page) return;
@@ -31,7 +31,8 @@ export async function notifyReservation(
     ? friends.find((f) => f.id === reservation.friendId)
     : undefined;
 
-  const head = kind === "created" ? "【新規予約】" : "【予約キャンセル】";
+  const head =
+    kind === "created" ? "【新規予約】" : kind === "changed" ? "【予約日時変更】" : "【予約キャンセル】";
   const lines = [`${head}${page.title}`, `日時：${fmtJa(reservation.startAt)}`];
   if (reservation.menuId) {
     const opt = (reservation.optionIds ?? []).map((o) => menuName.get(o)).filter(Boolean);

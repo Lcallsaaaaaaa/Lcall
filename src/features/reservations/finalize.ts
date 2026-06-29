@@ -18,7 +18,11 @@ function uid(p: string): string {
  * 予約確定後の共通処理：タグ付与・予約者へ確定LINE（取消リンク付き）・店舗へ通知。
  * 無料予約は createReservation から、事前支払いは Stripe webhook（決済成功）から呼ぶ。
  */
-export async function finalizeReservationConfirmed(db: DataProvider, reservationId: string): Promise<void> {
+export async function finalizeReservationConfirmed(
+  db: DataProvider,
+  reservationId: string,
+  kind: "created" | "changed" = "created"
+): Promise<void> {
   const r = await db.reservations.get(reservationId);
   if (!r) return;
   const page = await db.reservationPages.get(r.reservationPageId);
@@ -46,7 +50,8 @@ export async function finalizeReservationConfirmed(db: DataProvider, reservation
       const menus = await db.reservationMenus.list();
       const menu = r.menuId ? menus.find((m) => m.id === r.menuId) : null;
       const opts = (r.optionIds ?? []).map((o) => menus.find((m) => m.id === o)).filter(Boolean) as { name: string }[];
-      const head = page.confirmText ? applyNameVars(page.confirmText, friend.displayName) : "ご予約を承りました。";
+      const defaultHead = kind === "changed" ? "ご予約の日時を変更しました。" : "ご予約を承りました。";
+      const head = kind === "created" && page.confirmText ? applyNameVars(page.confirmText, friend.displayName) : defaultHead;
       const lines = [head, `日時：${fmtJa(r.startAt)}`];
       if (menu) lines.push(`メニュー：${menu.name}`);
       if (opts.length) lines.push(`オプション：${opts.map((o) => o.name).join("、")}`);
@@ -60,5 +65,5 @@ export async function finalizeReservationConfirmed(db: DataProvider, reservation
   }
 
   // 店舗側へ通知（指定タグの友だちへLINE＋指定メール）
-  await notifyReservation(db, r, "created");
+  await notifyReservation(db, r, kind);
 }

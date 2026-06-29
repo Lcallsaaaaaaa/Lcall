@@ -216,6 +216,58 @@ export async function getCancelView(
   return { page, reservation, menuName, optionNames, valid };
 }
 
+export interface ChangeView {
+  page: ReservationPage;
+  reservation: Reservation;
+  menuName?: string;
+  optionNames: string[];
+  valid: boolean;
+  deadlinePassed: boolean;
+  days: DayOption[];
+  selectedDate?: string;
+  slots: SlotOption[];
+}
+
+/** セルフ日時変更（リスケ）画面用：トークン照合＋受付期限＋空き枠（自分を除外）。 */
+export async function getChangeView(
+  pageId: string,
+  rid: string,
+  token: string,
+  date?: string
+): Promise<ChangeView | null> {
+  const db = getDataProvider();
+  const [page, reservation, menus, reservations] = await Promise.all([
+    db.reservationPages.get(pageId),
+    rid ? db.reservations.get(rid) : Promise.resolve(null),
+    db.reservationMenus.list(),
+    db.reservations.list(),
+  ]);
+  if (!page || !reservation || reservation.reservationPageId !== pageId) return null;
+  const valid = !!reservation.cancelToken && reservation.cancelToken === token;
+  const deadline = new Date(reservation.startAt).getTime() - (page.changeDeadlineHours ?? 0) * 3600000;
+  const deadlinePassed = reservation.status !== "confirmed" || Date.now() > deadline;
+  const menuName = reservation.menuId ? menus.find((m) => m.id === reservation.menuId)?.name : undefined;
+  const optionNames = (reservation.optionIds ?? [])
+    .map((o) => menus.find((m) => m.id === o)?.name)
+    .filter((n): n is string => !!n);
+  const dur =
+    (reservation.menuId
+      ? (menus.find((m) => m.id === reservation.menuId)?.durationMinutes ?? page.durationMinutes)
+      : page.durationMinutes) +
+    (reservation.optionIds ?? []).reduce(
+      (s, oid) => s + (menus.find((m) => m.id === oid)?.durationMinutes ?? 0),
+      0
+    );
+  const days = dayOptions(page);
+  const selectedDate = date && days.some((d) => d.value === date) ? date : undefined;
+  let slots: SlotOption[] = [];
+  if (valid && !deadlinePassed && selectedDate) {
+    const others = reservations.filter((r) => r.reservationPageId === pageId && r.id !== reservation.id);
+    slots = daySlots(page, selectedDate, dur, others);
+  }
+  return { page, reservation, menuName, optionNames, valid, deadlinePassed, days, selectedDate, slots };
+}
+
 export interface FriendReservation {
   id: string;
   pageTitle: string;
