@@ -8,7 +8,7 @@ import type {
   RedirectLink,
   Tag,
 } from "@/lib/data/types";
-import { trackingUrl } from "@/lib/tracking";
+import { trackingUrlForRequest } from "@/lib/tracking";
 
 export interface BroadcastRow extends Broadcast {
   lineAccountName?: string;
@@ -104,22 +104,24 @@ export async function getBroadcast(id: string): Promise<BroadcastDetail | null> 
   const tagById = new Map(tags.map((t) => [t.id, t]));
   const linkById = new Map(links.map((l) => [l.id, l]));
 
-  const cardViews: CardView[] = cards
-    .filter((c) => c.broadcastId === id)
-    .sort((a, b) => a.order - b.order)
-    .map((c) => {
-      const link = linkById.get(c.redirectLinkId);
-      const trackingId = link?.trackingId ?? "";
-      return {
-        ...c,
-        trackingId,
-        trackingUrl: trackingId ? trackingUrl(trackingId) : "",
-        targetUrl: link?.targetUrl ?? "",
-        autoTagId: link?.autoTagId,
-        autoTagName: link?.autoTagId ? tagById.get(link.autoTagId)?.name : undefined,
-        adCode: link?.adCode,
-      };
-    });
+  const cardViews: CardView[] = await Promise.all(
+    cards
+      .filter((c) => c.broadcastId === id)
+      .sort((a, b) => a.order - b.order)
+      .map(async (c) => {
+        const link = linkById.get(c.redirectLinkId);
+        const trackingId = link?.trackingId ?? "";
+        return {
+          ...c,
+          trackingId,
+          trackingUrl: trackingId ? await trackingUrlForRequest(trackingId) : "",
+          targetUrl: link?.targetUrl ?? "",
+          autoTagId: link?.autoTagId,
+          autoTagName: link?.autoTagId ? tagById.get(link.autoTagId)?.name : undefined,
+          adCode: link?.adCode,
+        };
+      })
+  );
 
   let urlLink: BroadcastDetail["urlLink"];
   if (broadcast.type === "url") {
@@ -127,7 +129,7 @@ export async function getBroadcast(id: string): Promise<BroadcastDetail | null> 
     if (link) {
       urlLink = {
         trackingId: link.trackingId,
-        trackingUrl: trackingUrl(link.trackingId),
+        trackingUrl: await trackingUrlForRequest(link.trackingId),
         targetUrl: link.targetUrl,
         openExternalBrowser: link.openExternalBrowser,
         autoTagId: link.autoTagId,

@@ -5,7 +5,7 @@ import { getBroadcast } from "@/features/broadcasts/queries";
 import { getSession } from "@/lib/auth";
 import { getDataProvider } from "@/lib/data/provider";
 import { getProfile, isRealToken, pushCarousel, pushText } from "@/lib/line";
-import { trackingUrl } from "@/lib/tracking";
+import { trackingUrlForRequest } from "@/lib/tracking";
 import { applyNameVars } from "@/lib/vars";
 
 function str(v: FormDataEntryValue | null): string {
@@ -164,13 +164,15 @@ export async function sendCarousel(friendId: string, formData: FormData) {
         account.channelAccessToken,
         friend.lineUserId,
         detail.broadcast.title,
-        detail.cards.map((c) => ({
-          thumbnailImageUrl: c.imageUrl || undefined,
-          title: c.title,
-          text: c.description,
-          uri: trackingUrl(c.trackingId, friendId),
-          label: c.buttonLabel,
-        }))
+        await Promise.all(
+          detail.cards.map(async (c) => ({
+            thumbnailImageUrl: c.imageUrl || undefined,
+            title: c.title,
+            text: c.description,
+            uri: await trackingUrlForRequest(c.trackingId, friendId),
+            label: c.buttonLabel,
+          }))
+        )
       );
     }
   }

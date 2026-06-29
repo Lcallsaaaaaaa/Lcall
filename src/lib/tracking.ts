@@ -4,6 +4,7 @@
  * 計測の実体は Cloudflare Worker（worker/）。配信内のURLは必ずこの計測URLを経由させ、
  * Worker がリダイレクトしつつクリックを Next の取込APIへ送る（§7）。
  */
+import { publicBaseUrl } from "@/lib/url";
 
 /**
  * 計測URLの基底。優先順位:
@@ -40,4 +41,28 @@ export function workerKey(): string {
 export function trackingUrl(trackingId: string, friendId?: string): string {
   const u = friendId ? `u=${encodeURIComponent(friendId)}` : "u={friendId}";
   return `${trackingBaseUrl()}/r/${trackingId}?${u}&openExternalBrowser=1`;
+}
+
+const isLocalUrl = (u: string) => /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(u);
+
+/**
+ * 計測URLの基底（リクエスト文脈版）。env が未設定でも、アクセス中の公開ホスト
+ * （x-forwarded-host）から基底を導出する。これにより `LCALL_PUBLIC_BASE_URL` を
+ * 設定し忘れていても、チャットからのカルーセル送信や管理画面表示で localhost が
+ * 混入しない。Worker を本番URLで明示した場合のみそれを最優先。
+ * ※ cron 等のリクエスト外では publicBaseUrl() が空を返すため env 同期版にフォールバック。
+ */
+export async function trackingBaseUrlForRequest(): Promise<string> {
+  const strip = (u: string) => u.replace(/\/+$/, "");
+  const explicit = process.env.TRACKING_BASE_URL?.trim();
+  if (explicit && !isLocalUrl(explicit)) return strip(explicit);
+  const base = await publicBaseUrl(); // env or x-forwarded-host
+  if (base && !isLocalUrl(base)) return strip(base);
+  return trackingBaseUrl(); // env同期版（最後の手段。localhost を含みうる）
+}
+
+/** trackingUrl のリクエスト文脈版（env未設定でも公開ホストから組み立てる）。 */
+export async function trackingUrlForRequest(trackingId: string, friendId?: string): Promise<string> {
+  const u = friendId ? `u=${encodeURIComponent(friendId)}` : "u={friendId}";
+  return `${await trackingBaseUrlForRequest()}/r/${trackingId}?${u}&openExternalBrowser=1`;
 }

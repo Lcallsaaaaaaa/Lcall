@@ -10,8 +10,13 @@ import { headers } from "next/headers";
 export async function publicBaseUrl(): Promise<string> {
   const explicit = process.env.LCALL_PUBLIC_BASE_URL?.trim();
   if (explicit) return explicit.replace(/\/+$/, "");
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  return `${proto}://${host}`;
+  try {
+    const h = await headers();
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+    return `${proto}://${host}`;
+  } catch {
+    // リクエスト文脈の外（cron 等）。呼び出し側でフォールバックする。
+    return "";
+  }
 }
