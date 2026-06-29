@@ -59,8 +59,9 @@ export default async function PublicBookingPage({
             {sp.join && (
               <div className="mt-6 rounded-lg border border-brand/30 bg-brand/5 p-4 text-left">
                 <p className="text-sm font-medium text-ink">📱 公式LINEを友だち追加</p>
-                <p className="mt-1 text-xs text-muted">
-                  友だち追加しておくと、前日にリマインドが届きます。当日の確認もスムーズです。
+                <p className="mt-1 whitespace-pre-wrap text-xs text-muted">
+                  {page.joinText ||
+                    "指定の公式LINEへ追加で、ご予約の日程・前日の予約通知が届きます。ご登録されておいてください。"}
                 </p>
                 <a href={addFriendUrl} className={buttonClasses("gradient", "md", "mt-3 w-full")}>
                   友だち追加する

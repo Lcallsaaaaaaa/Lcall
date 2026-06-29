@@ -75,6 +75,7 @@ export async function updateReservationPage(id: string, formData: FormData) {
     daysAhead: Math.max(1, num(formData.get("daysAhead"), 30)),
     autoTagId: str(formData.get("autoTagId")) || undefined,
     confirmText: str(formData.get("confirmText")) || undefined,
+    joinText: str(formData.get("joinText")) || undefined,
     notifyEmail: str(formData.get("notifyEmail")) || undefined,
     notifyTagId: str(formData.get("notifyTagId")) || undefined,
   });

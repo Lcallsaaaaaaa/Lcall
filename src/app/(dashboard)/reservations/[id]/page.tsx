@@ -141,6 +141,9 @@ export default async function ReservationDetailPage({ params }: { params: Promis
           <FormField label="予約確定メッセージ（任意・{{name}}使用可）" htmlFor="confirmText" hint="空ならデフォルト文。LINEで送信されます。">
             <Textarea id="confirmText" name="confirmText" defaultValue={page.confirmText} placeholder="{{name}}様、ご予約ありがとうございます。" />
           </FormField>
+          <FormField label="友だち追加の案内文（予約完了画面・任意）" htmlFor="joinText" hint="まだ友だちでない予約者に表示。空ならデフォルト文。">
+            <Textarea id="joinText" name="joinText" defaultValue={page.joinText} placeholder="指定の公式LINEへ追加で、ご予約の日程・前日の予約通知が届きます。ご登録されておいてください。" />
+          </FormField>
 
           <div className="rounded-lg border border-line bg-surface-2/40 p-4">
             <p className="text-sm font-medium text-ink">予約・キャンセルの通知先（店舗側）</p>
