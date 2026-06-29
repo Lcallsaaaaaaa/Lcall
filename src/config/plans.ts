@@ -57,7 +57,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
   standard: {
     code: "standard",
     name: "Standard",
-    lineLimit: 10,
+    lineLimit: 20,
     monthlyFee: 14800,
     features: ["broadcast", "forms", "chat", "reservations", "aiCharacter"],
     affiliateRate: 0.15,
@@ -65,7 +65,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
   pro: {
     code: "pro",
     name: "Pro",
-    lineLimit: 15,
+    lineLimit: 50,
     monthlyFee: 19800,
     features: ["broadcast", "forms", "chat", "reservations", "aiCharacter"],
     affiliateRate: 0.15,
@@ -131,8 +131,8 @@ export function planAffiliateRate(plan: PlanCode): number {
   return PLANS[plan].affiliateRate;
 }
 
-/** 将来拡張の上限（§10） */
-export const MAX_LINE_ACCOUNTS_FUTURE = 50;
+/** 将来拡張の上限（§10）。Pro=50 のため headroom を持たせる。 */
+export const MAX_LINE_ACCOUNTS_FUTURE = 100;
 
 /** 料金（§5 契約・請求管理）。月額はティア別（PLANS）に持つ。 */
 export const PRICING = {

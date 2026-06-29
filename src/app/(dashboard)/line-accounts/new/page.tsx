@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { LineAccountForm } from "@/components/features/LineAccountForm";
 import { listAiCharacters } from "@/features/ai-characters/queries";
 import { createLineAccount } from "@/features/line-accounts/actions";
-import { getPlanLimit } from "@/features/line-accounts/queries";
+import { activeLineCount, getPlanLimit } from "@/features/line-accounts/queries";
 import { getDataProvider } from "@/lib/data/provider";
 
 export default async function NewLineAccountPage() {
@@ -13,7 +13,7 @@ export default async function NewLineAccountPage() {
     getPlanLimit(),
     listAiCharacters(),
   ]);
-  if (accounts.length >= limit) redirect("/line-accounts?error=limit");
+  if (activeLineCount(accounts) >= limit) redirect("/line-accounts?error=limit");
 
   return (
     <div className="mx-auto max-w-3xl p-6 lg:p-8">

@@ -10,6 +10,7 @@ import {
   toggleLineAccountStatus,
 } from "@/features/line-accounts/actions";
 import {
+  activeLineCount,
   getCurrentPlan,
   getPlanLimit,
   listLineAccounts,
@@ -27,7 +28,8 @@ export default async function LineAccountsPage({
     getPlanLimit(),
     getCurrentPlan(),
   ]);
-  const atLimit = accounts.length >= limit;
+  const activeCount = activeLineCount(accounts);
+  const atLimit = activeCount >= limit;
 
   const columns: Column<LineAccountWithCount>[] = [
     {
@@ -116,7 +118,7 @@ export default async function LineAccountsPage({
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full border border-line bg-surface px-3 py-1 text-sm text-muted">
-            {PLANS[plan].name}プラン · {accounts.length} / {limit}
+            {PLANS[plan].name}プラン · 有効 {activeCount} / {limit}
             <span className="text-faint"> （将来最大{MAX_LINE_ACCOUNTS_FUTURE}）</span>
           </span>
           {atLimit ? (

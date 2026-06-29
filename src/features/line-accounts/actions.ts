@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDataProvider } from "@/lib/data/provider";
 import type { LineAccount, LineAccountStatus } from "@/lib/data/types";
-import { getPlanLimit } from "./queries";
+import { activeLineCount, getPlanLimit } from "./queries";
 
 const STATUSES: LineAccountStatus[] = ["active", "paused", "warning", "suspended"];
 
@@ -53,7 +53,8 @@ function revalidate() {
 export async function createLineAccount(formData: FormData) {
   const db = getDataProvider();
   const [existing, limit] = await Promise.all([db.lineAccounts.list(), getPlanLimit()]);
-  if (existing.length >= limit) {
+  // 有効数（active）で上限判定。停止中などは数えない。
+  if (activeLineCount(existing) >= limit) {
     redirect("/line-accounts?error=limit");
   }
 

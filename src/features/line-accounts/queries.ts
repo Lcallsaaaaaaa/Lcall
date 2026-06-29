@@ -37,3 +37,11 @@ export async function getCurrentPlan(): Promise<PlanCode> {
 export async function getPlanLimit(): Promise<number> {
   return PLANS[await getCurrentPlan()].lineLimit;
 }
+
+/**
+ * プラン上限の判定に使う「有効数」＝status が active のアカウント数。
+ * 停止/警告/休止（paused・warning・suspended）は接続数に数えない。
+ */
+export function activeLineCount(accounts: { status: LineAccount["status"] }[]): number {
+  return accounts.filter((a) => a.status === "active").length;
+}
