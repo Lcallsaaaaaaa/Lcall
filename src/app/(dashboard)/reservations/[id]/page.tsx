@@ -316,7 +316,13 @@ export default async function ReservationDetailPage({
                   <tr key={r.id} className="border-b border-line last:border-0">
                     <td className="whitespace-nowrap px-5 py-3 text-ink">{fmt(r.startAt)}</td>
                     <td className="px-5 py-3 text-ink">
-                      {r.friendName}
+                      {r.friendId ? (
+                        <Link href={`/inbox?f=${r.friendId}`} className="text-brand hover:underline" title="チャット画面を開く">
+                          {r.friendName}
+                        </Link>
+                      ) : (
+                        r.friendName
+                      )}
                       {r.phone && <span className="ml-1 text-xs text-muted">({r.phone})</span>}
                     </td>
                     {page.type === "menu" && (

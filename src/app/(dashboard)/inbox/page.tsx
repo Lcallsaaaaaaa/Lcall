@@ -17,6 +17,8 @@ import {
   toggleAiPaused,
 } from "@/features/chat/actions";
 import { getThread, listThreads, recentAddedFriends } from "@/features/chat/queries";
+import { getFriendDetail } from "@/features/friends/queries";
+import { getFriendReservations } from "@/features/reservations/queries";
 import { listBroadcasts } from "@/features/broadcasts/queries";
 import { listMessageTemplates } from "@/features/message-templates/queries";
 import { assignTag, unassignTag } from "@/features/tags/actions";
@@ -37,14 +39,26 @@ export default async function InboxPage({
   searchParams: Promise<{ f?: string }>;
 }) {
   const { f } = await searchParams;
-  const [threads, thread, allTags, templates, broadcasts, recentAdded] = await Promise.all([
-    listThreads(),
-    f ? getThread(f) : null,
-    listTags(),
-    listMessageTemplates(),
-    listBroadcasts(),
-    recentAddedFriends(),
-  ]);
+  const [threads, thread, allTags, templates, broadcasts, recentAdded, friendDetail, friendReservations] =
+    await Promise.all([
+      listThreads(),
+      f ? getThread(f) : null,
+      listTags(),
+      listMessageTemplates(),
+      listBroadcasts(),
+      recentAddedFriends(),
+      f ? getFriendDetail(f) : Promise.resolve(null),
+      f ? getFriendReservations(f) : Promise.resolve([]),
+    ]);
+  const formHistory = friendDetail?.formHistory ?? [];
+  const surveyHistory = friendDetail?.surveyHistory ?? [];
+  const RES_STATUS: Record<string, string> = {
+    pending: "支払い待ち",
+    confirmed: "予約中",
+    done: "来店済",
+    cancelled: "キャンセル",
+    noshow: "来店なし",
+  };
   const threadFriendIds = new Set(threads.map((t) => t.friendId));
   const recentNew = recentAdded.filter((r) => !threadFriendIds.has(r.friendId));
   const carousels = broadcasts.filter((b) => b.type === "carousel");
@@ -303,6 +317,71 @@ export default async function InboxPage({
               </form>
             )}
           </div>
+
+          {(formHistory.length > 0 || surveyHistory.length > 0 || friendReservations.length > 0) && (
+            <div className="mt-4 space-y-3 border-t border-line pt-4">
+              <p className="text-sm font-medium text-ink">回答・予約</p>
+
+              {formHistory.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted">申込フォーム</p>
+                  <div className="space-y-1">
+                    {formHistory.map((r) => (
+                      <details key={r.id} className="rounded border border-line bg-surface-2/40 text-xs">
+                        <summary className="cursor-pointer px-2 py-1 text-ink">{r.formTitle}</summary>
+                        <dl className="border-t border-line px-2 py-1">
+                          {r.answers.map((a, i) => (
+                            <div key={i} className="flex gap-2 py-0.5">
+                              <dt className="w-14 shrink-0 text-faint">{a.label}</dt>
+                              <dd className="flex-1 whitespace-pre-wrap break-words text-ink">{a.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {surveyHistory.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted">アンケート</p>
+                  <div className="space-y-1">
+                    {surveyHistory.map((r) => (
+                      <details key={r.id} className="rounded border border-line bg-surface-2/40 text-xs">
+                        <summary className="cursor-pointer px-2 py-1 text-ink">{r.surveyTitle}</summary>
+                        <dl className="border-t border-line px-2 py-1">
+                          {r.answers.map((a, i) => (
+                            <div key={i} className="flex gap-2 py-0.5">
+                              <dt className="w-14 shrink-0 text-faint">{a.label}</dt>
+                              <dd className="flex-1 whitespace-pre-wrap break-words text-ink">{a.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {friendReservations.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-muted">予約</p>
+                  <ul className="space-y-1 text-xs">
+                    {friendReservations.map((r) => (
+                      <li key={r.id} className="rounded border border-line bg-surface-2/40 px-2 py-1">
+                        <span className="text-ink">
+                          {new Date(r.startAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        {r.menuName && <span className="text-muted">／{r.menuName}</span>}
+                        <span className="ml-1 text-faint">（{RES_STATUS[r.status] ?? r.status}）</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {thread.aiEnabled && (
             <form
