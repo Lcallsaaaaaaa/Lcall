@@ -98,6 +98,11 @@ export async function subscribePlan(formData: FormData) {
   revalidate();
 }
 
+/**
+ * プラン変更。方針＝**日割りなし**：プランは即時切替（機能/接続上限に反映）、
+ * 料金は次回請求から新額（按分・即時差額請求はしない）。
+ * 将来 実Stripeのサブスク変更を実装する際は proration_behavior:"none" で揃える。
+ */
 export async function changePlan(formData: FormData) {
   const customer = await getCustomer();
   if (!customer) return;

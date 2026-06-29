@@ -96,6 +96,8 @@ export default async function BillingPage({
             ? `Stripeで実決済${stripeTest ? "（テストモード・実課金なし）" : ""}。`
             : "クレジットカード決済（モック）。"}
           初期導入サポート費 {yen(PRICING.setupFee)}・月額 {yen(PLANS.lite.monthlyFee)}〜{yen(PLANS.pro.monthlyFee)}・AI応答 {yen(PRICING.aiReplyUnitFee)}/件（すべて税込）。
+          <br />
+          <span className="text-faint">月額は日割りなし（申込日を起算に毎月課金）。プラン変更は即時切替・次回請求から新料金。</span>
         </p>
       </div>
 
