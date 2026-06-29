@@ -3,10 +3,16 @@ import type { PlanCode } from "@/lib/data/types";
 /** プラン別に出し分ける機能のキー。 */
 export type PlanFeatureKey =
   | "broadcast"
+  | "scenario"
   | "forms"
   | "chat"
+  | "aiCharacter"
+  | "richMenu"
   | "reservations"
-  | "aiCharacter";
+  | "surveys"
+  | "lp"
+  | "distribution"
+  | "adCodes";
 
 export interface PlanFeatureDef {
   key: PlanFeatureKey;
@@ -17,11 +23,17 @@ export interface PlanFeatureDef {
 
 /** 比較表に表示する機能の定義（配列順＝表示順）。 */
 export const PLAN_FEATURES: PlanFeatureDef[] = [
-  { key: "broadcast", label: "一斉・ステップ・カルーセル配信" },
-  { key: "forms", label: "申込フォーム・アンケート" },
-  { key: "chat", label: "チャット対応・タグ管理" },
+  { key: "broadcast", label: "一斉・カルーセル配信" },
+  { key: "scenario", label: "シナリオ配信（ステップ）" },
+  { key: "forms", label: "申込フォーム" },
+  { key: "chat", label: "チャット対応・タグ・定型文" },
+  { key: "aiCharacter", label: "AI自動応答" },
+  { key: "richMenu", label: "リッチメニュー" },
   { key: "reservations", label: "予約システム" },
-  { key: "aiCharacter", label: "AIキャラ自動応答" },
+  { key: "surveys", label: "アンケート" },
+  { key: "lp", label: "LP管理" },
+  { key: "distribution", label: "分散登録URL" },
+  { key: "adCodes", label: "広告コード＋CV計測" },
 ];
 
 export interface PlanDef {
@@ -51,7 +63,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     name: "Lite",
     lineLimit: 5,
     monthlyFee: 9800,
-    features: ["broadcast", "forms", "chat", "aiCharacter"],
+    features: ["broadcast", "scenario", "forms", "chat", "aiCharacter", "richMenu"],
     affiliateRate: 0,
   },
   standard: {
@@ -59,7 +71,18 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     name: "Standard",
     lineLimit: 20,
     monthlyFee: 14800,
-    features: ["broadcast", "forms", "chat", "reservations", "aiCharacter"],
+    features: [
+      "broadcast",
+      "scenario",
+      "forms",
+      "chat",
+      "aiCharacter",
+      "richMenu",
+      "reservations",
+      "surveys",
+      "lp",
+      "distribution",
+    ],
     affiliateRate: 0.15,
   },
   pro: {
@@ -67,7 +90,19 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     name: "Pro",
     lineLimit: 50,
     monthlyFee: 19800,
-    features: ["broadcast", "forms", "chat", "reservations", "aiCharacter"],
+    features: [
+      "broadcast",
+      "scenario",
+      "forms",
+      "chat",
+      "aiCharacter",
+      "richMenu",
+      "reservations",
+      "surveys",
+      "lp",
+      "distribution",
+      "adCodes",
+    ],
     affiliateRate: 0.15,
   },
 };

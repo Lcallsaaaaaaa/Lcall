@@ -1,4 +1,5 @@
-import type { Role } from "./data/types";
+import { type PlanFeatureKey, planHasFeature } from "@/config/plans";
+import type { PlanCode, Role } from "./data/types";
 
 /** 役割の表示名。 */
 export const ROLE_LABELS: Record<Role, string> = {
@@ -48,4 +49,26 @@ const ACCESS: Record<string, Role[]> = {
 export function canSee(role: Role, key: string): boolean {
   const roles = ACCESS[key];
   return roles ? roles.includes(role) : role === "owner";
+}
+
+/**
+ * navキー → 必要なプラン機能。ここに無いキーは全プランで利用可（コア機能）。
+ * 料率/機能の単一情報源は config/plans.ts（PLANS[].features）。
+ */
+const NAV_FEATURE: Record<string, PlanFeatureKey> = {
+  reservations: "reservations",
+  surveys: "surveys",
+  lp: "lp",
+  distribution: "distribution",
+  "ad-codes": "adCodes",
+};
+
+/**
+ * 現在のプランで当該navキーが使えるか。
+ * plan が undefined（プラン未設定＝不明）のときは全表示＝誤ロック防止。
+ */
+export function navAllowedByPlan(plan: PlanCode | undefined, key: string): boolean {
+  if (!plan) return true;
+  const feature = NAV_FEATURE[key];
+  return feature ? planHasFeature(plan, feature) : true;
 }

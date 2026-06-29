@@ -5,16 +5,25 @@ import { usePathname } from "next/navigation";
 import { GradientLogo } from "@/components/ui/GradientLogo";
 import { NAV_GROUPS } from "@/config/nav";
 import { cn } from "@/lib/cn";
-import type { Role } from "@/lib/data/types";
-import { canSee } from "@/lib/roles";
+import type { PlanCode, Role } from "@/lib/data/types";
+import { canSee, navAllowedByPlan } from "@/lib/roles";
 
-export function Sidebar({ badges, role }: { badges?: Record<string, number>; role: Role }) {
+export function Sidebar({
+  badges,
+  role,
+  plan,
+}: {
+  badges?: Record<string, number>;
+  role: Role;
+  /** 現在のプラン（未設定なら全機能表示）。プラン外の機能はサイドバーから隠す。 */
+  plan?: PlanCode;
+}) {
   const pathname = usePathname();
 
-  // 役割で見える項目だけに絞り込み、空グループは省く
+  // 役割＋プランで見える項目だけに絞り込み、空グループは省く
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((i) => canSee(role, i.key)),
+    items: g.items.filter((i) => canSee(role, i.key) && navAllowedByPlan(plan, i.key)),
   })).filter((g) => g.items.length > 0);
 
   return (
