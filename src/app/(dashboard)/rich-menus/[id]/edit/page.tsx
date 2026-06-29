@@ -14,6 +14,7 @@ import {
   uploadRichMenuImageAction,
 } from "@/features/rich-menus/actions";
 import { getRichMenu } from "@/features/rich-menus/queries";
+import { RichMenuImageInput } from "@/components/features/RichMenuImageInput";
 import { getDataProvider } from "@/lib/data/provider";
 
 const OK_MSG: Record<string, string> = {
@@ -155,15 +156,8 @@ export default async function EditRichMenuPage({
             </div>
 
             <form action={uploadRichMenuImageAction.bind(null, id)} className="flex flex-wrap items-end gap-3">
-              <FormField label="画像ファイル" htmlFor="image" className="flex-1">
-                <input
-                  id="image"
-                  name="image"
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:text-ink"
-                  required
-                />
+              <FormField label="画像ファイル" htmlFor="image" className="flex-1" hint="大きい画像は自動で1MB以下に最適化されます">
+                <RichMenuImageInput />
               </FormField>
               <button type="submit" className={buttonClasses("outline", "md")}>アップロード</button>
             </form>
