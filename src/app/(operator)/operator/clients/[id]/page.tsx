@@ -254,6 +254,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             <FormField label="ホスティングのメモ" htmlFor="hostingNote" className="sm:col-span-2">
               <Input id="hostingNote" name="hostingNote" defaultValue={instance?.hostingNote ?? ""} />
             </FormField>
+            <FormField label="サポートプラン（紹介報酬20%対象）" htmlFor="supportPlan" className="sm:col-span-2">
+              <label className="flex h-9 items-center gap-2 text-sm text-ink">
+                <input type="checkbox" id="supportPlan" name="supportPlan" defaultChecked={client.supportPlan ?? false} className="size-4" />
+                月¥15,000のサポートプラン 契約あり
+              </label>
+            </FormField>
           </div>
           <FormField label="メモ" htmlFor="notes">
             <Textarea id="notes" name="notes" defaultValue={client.notes ?? ""} />

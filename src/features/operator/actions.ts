@@ -4,7 +4,8 @@ import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDataProvider } from "@/lib/data/provider";
-import type { ClientAccount, PlanCode } from "@/lib/data/types";
+import type { AffiliateCommission, ClientAccount, PlanCode } from "@/lib/data/types";
+import { accrueRecurringForPeriod, currentPeriodMonth, ensureSignupCommission } from "./affiliate";
 import { callInstance, fetchInstanceStatus } from "./fleet";
 import { requireOperator } from "./guard";
 
@@ -47,6 +48,7 @@ export async function createClient(formData: FormData) {
   const now = new Date().toISOString();
   const id = uid("ca");
 
+  const affiliateId = str(formData.get("affiliateId")) || undefined;
   await db.clientAccounts.create({
     id,
     name,
@@ -55,9 +57,28 @@ export async function createClient(formData: FormData) {
     plan: parsePlan(formData.get("plan")),
     status: "trial",
     stripeCustomerId: str(formData.get("stripeCustomerId")) || undefined,
+    affiliateId,
+    supportPlan: str(formData.get("supportPlan")) === "on",
     notes: str(formData.get("notes")) || undefined,
     createdAt: now,
   });
+
+  // 紹介経由なら成約として記録し、初回報酬を計上（重複なし）。
+  if (affiliateId) {
+    const aff = await db.affiliates.get(affiliateId);
+    if (aff) {
+      await db.affiliateReferrals.create({
+        id: uid("ref"),
+        affiliateId,
+        code: aff.code,
+        landingAt: now,
+        clientAccountId: id,
+        convertedAt: now,
+        status: "converted",
+      });
+      await ensureSignupCommission(id);
+    }
+  }
 
   await db.clientInstances.create({
     id: uid("ci"),
@@ -84,6 +105,7 @@ export async function updateClient(id: string, formData: FormData) {
     plan: parsePlan(formData.get("plan")),
     status: parseStatus(formData.get("status")),
     stripeCustomerId: str(formData.get("stripeCustomerId")) || undefined,
+    supportPlan: str(formData.get("supportPlan")) === "on",
     notes: str(formData.get("notes")) || undefined,
   });
   const instances = await db.clientInstances.list();
@@ -160,4 +182,56 @@ export async function remoteControl(
     body: JSON.stringify({ action }),
   }).catch(() => null);
   revalidate(clientId);
+}
+
+// ---- アフィリエイト（紹介者） ----
+
+function affRevalidate() {
+  revalidatePath("/operator/affiliates");
+}
+function slugCode(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16);
+}
+
+/** 紹介者を登録（コード未指定なら自動生成）。 */
+export async function createAffiliate(formData: FormData) {
+  await requireOperator();
+  const db = getDataProvider();
+  const name = str(formData.get("name")) || "無名の紹介者";
+  let code = slugCode(str(formData.get("code")) || name) || `aff${Date.now().toString(36)}`;
+  const existing = await db.affiliates.list();
+  // コード一意化（重複なら接尾辞）
+  while (existing.some((a) => a.code === code)) code = `${code}${Math.floor(Math.random() * 90 + 10)}`;
+  await db.affiliates.create({
+    id: uid("aff"),
+    name,
+    email: str(formData.get("email")),
+    code,
+    status: "active",
+    payoutNote: str(formData.get("payoutNote")) || undefined,
+    createdAt: new Date().toISOString(),
+  });
+  affRevalidate();
+}
+
+/** 紹介者の有効/停止を切り替え。 */
+export async function setAffiliateStatus(id: string, status: "active" | "suspended") {
+  await requireOperator();
+  await getDataProvider().affiliates.update(id, { status });
+  affRevalidate();
+}
+
+/** 指定月（未指定は当月）の月次レベニューシェアを計上。 */
+export async function accrueCommissions(formData: FormData) {
+  await requireOperator();
+  const period = str(formData.get("periodMonth")) || currentPeriodMonth();
+  await accrueRecurringForPeriod(period);
+  affRevalidate();
+}
+
+/** 報酬の状態を変更（承認/支払い済み）。 */
+export async function setCommissionStatus(id: string, status: AffiliateCommission["status"]) {
+  await requireOperator();
+  await getDataProvider().affiliateCommissions.update(id, { status });
+  affRevalidate();
 }

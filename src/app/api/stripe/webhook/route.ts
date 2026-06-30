@@ -1,8 +1,45 @@
 import { revalidatePath } from "next/cache";
 import { getDataProvider } from "@/lib/data/provider";
+import type { DataProvider } from "@/lib/data/repository";
 import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
 import { finalizeReservationConfirmed } from "@/features/reservations/finalize";
+import { accrueRecurringForClient, ensureSignupCommission } from "@/features/operator/affiliate";
+import { isControlPlane } from "@/lib/operator";
 import { stripe, verifyStripeSignature } from "@/lib/stripe";
+
+/**
+ * 運営コンソール（コントロールプレーン）でのシステム料Webhook処理。
+ * 開発者の単一env Stripe からの請求イベントを、stripeCustomerId で ClientAccount に振り分けて
+ * 台帳のステータス更新＋月次レベニューシェアの計上を行う（社数が増えても1箇所で集約）。
+ */
+async function handleControlPlaneBilling(db: DataProvider, type: string, obj: any): Promise<void> {
+  const cus = obj?.customer ? String(obj.customer) : "";
+  if (!cus) return;
+  const client = (await db.clientAccounts.list()).find((c) => c.stripeCustomerId === cus);
+  if (!client) return;
+
+  function periodMonth(): string {
+    const sec = Number(obj?.lines?.data?.[0]?.period?.end ?? obj?.period?.end);
+    const d = Number.isFinite(sec) && sec > 0 ? new Date(sec * 1000) : new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  switch (type) {
+    case "checkout.session.completed":
+      await db.clientAccounts.update(client.id, { status: "active" });
+      await ensureSignupCommission(client.id); // 初回報酬（紹介経由のみ・冪等）
+      break;
+    case "invoice.paid":
+      await db.clientAccounts.update(client.id, { status: "active" });
+      await accrueRecurringForClient(client.id, periodMonth()); // 月次レベニューシェア
+      break;
+    case "customer.subscription.deleted":
+      await db.clientAccounts.update(client.id, { status: "canceled" });
+      break;
+    default:
+      break;
+  }
+}
 
 export const runtime = "nodejs";
 
@@ -42,6 +79,14 @@ export async function POST(request: Request) {
   }
 
   const obj = event?.data?.object ?? {};
+
+  // 運営コンソールでは、システム料の請求イベントを stripeCustomerId で ClientAccount に集約処理。
+  if (isControlPlane()) {
+    await handleControlPlaneBilling(db, String(event.type), obj);
+    revalidatePath("/operator");
+    revalidatePath("/operator/affiliates");
+    return new Response("ok");
+  }
 
   async function getOrCreateCustomer(stripeCustomerId?: string): Promise<BillingCustomer> {
     const list = await db.billingCustomers.list();

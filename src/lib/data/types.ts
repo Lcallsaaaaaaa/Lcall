@@ -615,8 +615,10 @@ export interface ClientAccount {
    * 各インスタンスの BillingCustomer を結ぶ鍵。カード番号自体は保持しない（Stripe保管）。
    */
   stripeCustomerId?: string;
-  /** 獲得元アフィリエイト（設計のみ・任意） */
+  /** 獲得元アフィリエイト（紹介者）。設定時、月次でレベニューシェアを計上。 */
   affiliateId?: ID;
+  /** サポートプラン（¥15,000/月・アフィリ20%対象）を契約しているか（運営が台帳で管理）。 */
+  supportPlan?: boolean;
   /** 納品チェックリストの完了ステップキー（config/delivery-steps の key） */
   deliverySteps?: string[];
   notes?: string;

@@ -5,8 +5,10 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { FormField, Input, Select, Textarea } from "@/components/ui/Form";
 import { PLANS } from "@/config/plans";
 import { createClient } from "@/features/operator/actions";
+import { getDataProvider } from "@/lib/data/provider";
 
-export default function NewClientPage() {
+export default async function NewClientPage() {
+  const affiliates = (await getDataProvider().affiliates.list()).filter((a) => a.status === "active");
   return (
     <div className="mx-auto max-w-[760px] p-6 lg:p-8">
       <Link
@@ -55,6 +57,24 @@ export default function NewClientPage() {
           >
             <Input id="stripeCustomerId" name="stripeCustomerId" placeholder="cus_xxxxxxxxxxxx" />
           </FormField>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField label="紹介元（アフィリエイト・任意）" htmlFor="affiliateId" hint="選ぶと成約として紐づき、初回・月次の紹介報酬を計上">
+              <Select id="affiliateId" name="affiliateId" defaultValue="">
+                <option value="">なし（直販）</option>
+                {affiliates.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}（{a.code}）
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="サポートプラン" htmlFor="supportPlan" hint="月¥15,000のサポート契約あり（紹介報酬20%対象）">
+              <label className="flex h-9 items-center gap-2 text-sm text-ink">
+                <input type="checkbox" id="supportPlan" name="supportPlan" className="size-4" />
+                契約あり
+              </label>
+            </FormField>
+          </div>
           <FormField label="ホスティングのメモ（任意）" htmlFor="hostingNote">
             <Input id="hostingNote" name="hostingNote" placeholder="例：Render Starter / Tokyo" />
           </FormField>
