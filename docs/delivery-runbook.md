@@ -60,7 +60,8 @@ npm run provision -- <slug> --base-url <公開URL> --email <client@example.com> 
 （友だち追加→あいさつが届くことを確認）
 
 ### 4. 決済 / AI（チェック: 決済設定 / AI設定・任意）
-- Stripe：`STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` を設定（本番）。`<公開URL>/api/stripe/webhook` をStripeに登録。
+- 予約の事前決済（店舗の売上）：クライアントが管理画面 **設定→決済設定** に**自分のStripeキー**（`sk_…`/`whsec_…`）を貼る（**envではなくDB**）。クライアントのStripeダッシュボードで **`<公開URL>/api/stripe/webhook`** を登録。売上は**クライアント自身のStripe**に入る。
+  - ※ **システム料（あなたの売上）はクライアント側で扱わず、運営コンソールに集約**（後述「Stripeは2系統」）。クライアントインスタンスの env `STRIPE_*` は**空でよい**。
 - AI：`ANTHROPIC_API_KEY` を設定し、AIキャラ／FAQを作成（¥3/応対の従量）。
 - 画像をLINEで使うなら R2（`R2_*`）を設定（HTTPS画像が必須）。
 
@@ -89,3 +90,50 @@ npm run provision -- <slug> --base-url <公開URL> --email <client@example.com> 
 - 運営固定（全社共有）：≈¥1,200〜¥4,200（コンソール＋共有Postgres＋ドメイン）。
 - クライアント毎：アプリ¥1,050＋DB≈¥0＋Stripe手数料（売上の約3.6%）。
 - 採算例（Lite ¥9,800）：粗利 ≈¥8,400/月（人件費前）＋初期¥50,000。
+
+---
+
+## 全体構成：運営コンソール「1つ」＋クライアント「N」
+
+- **運営コンソール（台帳）＝あなた専用に最初の1回だけ立てる**。クライアントが増えても**台帳は1つのまま**（各社は台帳の1行＝`ClientAccount`）。
+- **クライアントアプリ＝1社につき1つ**（モデルB・上の「手順」を毎回）。これが納品物。
+- 同一リポジトリを **env で2モード**に切替：通常＝クライアント／`LCALL_CONTROL_PLANE=true`＝運営コンソール。
+
+```
+運営コンソール ×1（あなた）           クライアントアプリ ×N（納品）
+  /operator/clients = 台帳   ──監視/集計/遠隔──▶  A社（別サーバ・別DB）
+  /operator/affiliates       ──   〃         ──▶  B社（別サーバ・別DB）
+```
+
+### A) 運営コンソールの立ち上げ（最初に1回だけ）
+1. Render → **Web Service** をもう1つ作成（同じGitHubリポジトリ）。Build/Start は通常どおり。
+2. 環境変数（**クライアント用とは別**。`PORT` は登録しない）：
+
+   | 変数 | 値 |
+   |---|---|
+   | `LCALL_CONTROL_PLANE` | `true` |
+   | `DATABASE_URL` | Supabase `lcall`（台帳DB） |
+   | `LCALL_SESSION_SECRET` | ランダム長文字列 |
+   | `LCALL_ADMIN_EMAIL` / `LCALL_ADMIN_PASSWORD_HASH` | あなたのログイン（`npm run hash-password`） |
+   | `LCALL_ALLOW_DEV_LOGIN` | `false` |
+   | `LCALL_PUBLIC_BASE_URL` | 運営コンソールの公開URL |
+   | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | **開発者（あなた）のStripe**（システム料Webhook用） |
+
+3. **開発者StripeのWebhook**を **`<運営URL>/api/stripe/webhook`** に登録（イベント：`checkout.session.completed` / `invoice.paid` / `customer.subscription.deleted`）。
+4. アクセス：台帳＝**`<運営URL>/operator/clients`**、アフィリ＝`<運営URL>/operator/affiliates`、横断集計＝`/operator`。
+   - ※ クライアントの公開URL（例 `lcall-6lr8...`）で `/operator` は **404**（運営画面は納品物に出さない）。
+
+### B) クライアント納品（1社ごと）
+上の「手順 1〜6」のとおり。決済まわりだけ補足：
+- **予約決済**＝クライアントが `/settings` に自分のStripeキーを貼る／webhookはクライアントの `<公開URL>/api/stripe/webhook`。
+- **システム料**＝運営コンソールに集約（クライアント env の `STRIPE_*` は空）。
+- 申込時にStripeで採番済みなら、クライアント env に `LCALL_BILLING_CUSTOMER_ID=cus_…` / `LCALL_BILLING_PLAN=<plan>` を入れる → 初回 `/billing` で「支払い済み契約」を自動確立（運営台帳の `stripeCustomerId` と同じ cus_ で紐づく）。
+
+## Stripe は2系統（混同注意）
+
+| 用途 | どのStripe | キーの置き場所 | Webhook登録先 |
+|---|---|---|---|
+| 予約の事前決済（**店舗の売上**） | **クライアント自身**のStripe | クライアントが `/settings` に貼る（DB） | クライアントの `<公開URL>/api/stripe/webhook` |
+| システム料（**あなたの売上**） | **開発者の1つ**のStripe | 運営コンソールの env `STRIPE_*` | 運営の `<運営URL>/api/stripe/webhook`（cus_ で `ClientAccount` に振り分け・集約） |
+
+→ クライアントが何社になっても、システム料のWebhookは**運営1箇所**で処理（各社インスタンスに全顧客のイベントが飛ばない）。`invoice.paid` 受信で台帳を `active` 更新＋アフィリ月次報酬を自動計上。
