@@ -6,11 +6,26 @@ import { buildEmptySeed, buildSeed } from "./seed";
 import { createSheetsProvider } from "./sheets-adapter";
 import type { EntityName } from "./types";
 import { createUpstashProvider } from "./upstash-adapter";
+import { currentTenant, type TenantConfig } from "@/lib/tenant";
 
 // dev のホットリロードでダミーデータが作り直されないようにグローバルへ保持
 declare global {
   // eslint-disable-next-line no-var
   var __lcallDataProvider: DataProvider | undefined;
+  // テナント別プロバイダのキャッシュ（②：1アプリ＋クライアント別DB）
+  // eslint-disable-next-line no-var
+  var __lcallTenantProviders: Map<string, DataProvider> | undefined;
+}
+
+const ENTITY_NAMES = () => Object.keys(buildEmptySeed()) as EntityName[];
+const seedFactory = () => (process.env.LCALL_SEED === "empty" ? buildEmptySeed() : buildSeed());
+
+/** テナント専用のプロバイダを構築（postgres は接続URL別、file は保存先別）。 */
+function buildTenantProvider(t: TenantConfig): DataProvider {
+  if (t.adapter === "file" || (!t.databaseUrl && t.dataFile)) {
+    return createFileProvider(seedFactory(), t.dataFile!);
+  }
+  return createPostgresProvider(ENTITY_NAMES(), t.databaseUrl);
 }
 
 /**
@@ -28,6 +43,19 @@ declare global {
  * postgres は永続テーブルのため起動時シードはせず、`/api/admin/db-seed` で明示投入する。
  */
 export function getDataProvider(): DataProvider {
+  // ② マルチテナント：リクエストのテナントが解決済みなら、そのテナント専用DBへ。
+  const tenant = currentTenant();
+  if (tenant) {
+    const key = tenant.databaseUrl ?? tenant.dataFile ?? tenant.slug;
+    const cache = (globalThis.__lcallTenantProviders ??= new Map());
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const provider = buildTenantProvider(tenant);
+    cache.set(key, provider);
+    return provider;
+  }
+
+  // 単一テナント（従来）。プロセス内シングルトン。
   if (globalThis.__lcallDataProvider) return globalThis.__lcallDataProvider;
 
   const hasPostgres = !!process.env.DATABASE_URL?.trim();
@@ -41,12 +69,11 @@ export function getDataProvider(): DataProvider {
         : hasUpstash
           ? "upstash"
           : "memory";
-  const seedFactory = () => (process.env.LCALL_SEED === "empty" ? buildEmptySeed() : buildSeed());
   const dataFile = process.env.LCALL_DATA_FILE?.trim() || "./.data/lcall.json";
 
   const provider =
     adapter === "postgres"
-      ? createPostgresProvider(Object.keys(buildEmptySeed()) as EntityName[])
+      ? createPostgresProvider(ENTITY_NAMES())
       : adapter === "upstash"
         ? createUpstashProvider(seedFactory)
         : adapter === "sheets"

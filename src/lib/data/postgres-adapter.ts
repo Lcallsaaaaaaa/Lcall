@@ -24,33 +24,38 @@ type Sql = ReturnType<typeof postgres>;
 type Json = Parameters<Sql["json"]>[0];
 
 declare global {
-  // dev のホットリロードや複数 import で接続プールが増殖しないよう保持
+  // dev のホットリロードや複数 import で接続プールが増殖しないよう保持。
+  // マルチテナント（②：1アプリ＋クライアント別DB）に備え、接続URLごとにプールを保持する。
   // eslint-disable-next-line no-var
-  var __lcallSql: Sql | undefined;
+  var __lcallSqlPools: Map<string, Sql> | undefined;
   // eslint-disable-next-line no-var
-  var __lcallSchemaReady: Promise<void> | undefined;
+  var __lcallSchemaReady: Map<string, Promise<void>> | undefined;
 }
 
-/** 接続プール（プロセス内シングルトン）。 */
-function getSql(): Sql {
-  if (globalThis.__lcallSql) return globalThis.__lcallSql;
-  const url = process.env.DATABASE_URL?.trim();
-  if (!url) throw new Error("DATABASE_URL が未設定です（postgres アダプタ）");
-  const sql = postgres(url, {
+/** 接続プール（接続URLごとにプロセス内で共有）。url 未指定なら env `DATABASE_URL`。 */
+function getSql(url?: string): Sql {
+  const conn = (url ?? process.env.DATABASE_URL)?.trim();
+  if (!conn) throw new Error("DATABASE_URL が未設定です（postgres アダプタ）");
+  const pools = (globalThis.__lcallSqlPools ??= new Map());
+  const existing = pools.get(conn);
+  if (existing) return existing;
+  const sql = postgres(conn, {
     ssl: process.env.PGSSL_DISABLE === "true" ? false : "require",
     prepare: false, // pgbouncer(transaction mode) 互換
     max: Number(process.env.PG_POOL_MAX || 5),
     idle_timeout: 20,
     connect_timeout: 15,
   });
-  globalThis.__lcallSql = sql;
+  pools.set(conn, sql);
   return sql;
 }
 
-/** スキーマ（テーブル＋索引）を一度だけ作成。 */
-function ensureSchema(sql: Sql): Promise<void> {
-  if (!globalThis.__lcallSchemaReady) {
-    globalThis.__lcallSchemaReady = (async () => {
+/** スキーマ（テーブル＋索引）を接続ごとに一度だけ作成。 */
+function ensureSchema(sql: Sql, conn: string): Promise<void> {
+  const ready = (globalThis.__lcallSchemaReady ??= new Map());
+  let p = ready.get(conn);
+  if (!p) {
+    p = (async () => {
       await sql`
         create table if not exists lcall_kv (
           entity text not null,
@@ -61,35 +66,37 @@ function ensureSchema(sql: Sql): Promise<void> {
         )`;
       await sql`create index if not exists lcall_kv_entity_seq on lcall_kv (entity, seq)`;
     })().catch((e) => {
-      globalThis.__lcallSchemaReady = undefined; // 失敗したら次回再試行
+      ready.delete(conn); // 失敗したら次回再試行
       throw e;
     });
+    ready.set(conn, p);
   }
-  return globalThis.__lcallSchemaReady;
+  return p;
 }
 
 class PgRepository<T extends { id: ID }> implements Repository<T> {
   constructor(
     private readonly sql: Sql,
+    private readonly conn: string,
     private readonly entity: EntityName
   ) {}
 
   async list(): Promise<T[]> {
-    await ensureSchema(this.sql);
+    await ensureSchema(this.sql, this.conn);
     const rows = await this.sql<{ data: T }[]>`
       select data from lcall_kv where entity = ${this.entity} order by seq`;
     return rows.map((r) => r.data);
   }
 
   async get(id: ID): Promise<T | null> {
-    await ensureSchema(this.sql);
+    await ensureSchema(this.sql, this.conn);
     const rows = await this.sql<{ data: T }[]>`
       select data from lcall_kv where entity = ${this.entity} and id = ${id}`;
     return rows.length ? rows[0].data : null;
   }
 
   async create(item: T): Promise<T> {
-    await ensureSchema(this.sql);
+    await ensureSchema(this.sql, this.conn);
     await this.sql`
       insert into lcall_kv (entity, id, data)
       values (${this.entity}, ${item.id}, ${this.sql.json(item as unknown as Json)})
@@ -98,7 +105,7 @@ class PgRepository<T extends { id: ID }> implements Repository<T> {
   }
 
   async update(id: ID, patch: Partial<T>): Promise<T | null> {
-    await ensureSchema(this.sql);
+    await ensureSchema(this.sql, this.conn);
     // 既存 jsonb に patch を浅くマージ（{...existing, ...patch}）。id は常に維持。
     const rows = await this.sql<{ data: T }[]>`
       update lcall_kv
@@ -109,7 +116,7 @@ class PgRepository<T extends { id: ID }> implements Repository<T> {
   }
 
   async remove(id: ID): Promise<boolean> {
-    await ensureSchema(this.sql);
+    await ensureSchema(this.sql, this.conn);
     const rows = await this.sql`
       delete from lcall_kv where entity = ${this.entity} and id = ${id} returning id`;
     return rows.count > 0;
@@ -119,10 +126,12 @@ class PgRepository<T extends { id: ID }> implements Repository<T> {
 /**
  * PostgreSQL 版 DataProvider を構築。
  * @param entityNames 取り扱うエンティティ名（通常は seed のキー）
+ * @param connectionUrl テナント別DBの接続URL（未指定は env `DATABASE_URL`）。
  */
-export function createPostgresProvider(entityNames: EntityName[]): DataProvider {
-  const sql = getSql();
+export function createPostgresProvider(entityNames: EntityName[], connectionUrl?: string): DataProvider {
+  const conn = (connectionUrl ?? process.env.DATABASE_URL ?? "").trim();
+  const sql = getSql(conn);
   const provider = {} as Record<EntityName, unknown>;
-  for (const name of entityNames) provider[name] = new PgRepository(sql, name);
+  for (const name of entityNames) provider[name] = new PgRepository(sql, conn, name);
   return provider as DataProvider;
 }
