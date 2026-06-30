@@ -5,7 +5,6 @@ import { totalUnread } from "@/features/chat/queries";
 import { getSession } from "@/lib/auth";
 import { getPlanSetting } from "@/lib/guard";
 import { isControlPlane } from "@/lib/operator";
-import { enterTenant, resolveTenant } from "@/lib/tenant";
 
 /** 認証必須レイアウト。未ログインは /login へ。Sidebar + Topbar の Stripe風シェル。 */
 export default async function DashboardLayout({
@@ -13,11 +12,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ② マルチテナント：ホスト（サブドメイン）から該当クライアントのDBを解決し、
-  // この同期フレームに適用（enterWith は呼び出し側で行う必要があるため二段階）。
-  const tenant = await resolveTenant();
-  if (tenant) enterTenant(tenant);
-
+  // ② マルチテナント：テナント文脈はカスタムサーバ（server.mjs）が als.run で全リクエストに適用。
+  // ここでの解決は不要（単一テナント時は従来どおり）。
   const user = await getSession();
   if (!user) redirect("/login");
   // 運営コンソール（コントロールプレーン）デプロイではクライアント画面を出さず /operator へ。

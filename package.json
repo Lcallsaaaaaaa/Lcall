@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "start:tenant": "node server.mjs",
     "lint": "eslint",
     "provision": "node scripts/provision-client.mjs",
     "hash-password": "node scripts/hash-password.mjs",
