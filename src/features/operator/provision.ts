@@ -118,13 +118,16 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
     // 2) そのテナントDBに初期オーナーを作成（schema は初回アクセスで自動生成）
     // パスワードは：明示ハッシュ→台帳保存ハッシュ→明示平文→自動生成、の優先で決定。
     const tenantDb = createPostgresProvider(ENTITY_NAMES(), provisioned.databaseUrl);
-    const providedHash = input.passwordHash?.trim() || client.ownerPasswordHash?.trim() || "";
-    const generatedPlain = providedHash || input.password?.trim() ? undefined : crypto.randomBytes(9).toString("base64url");
-    const passwordHash = providedHash || hashPassword((input.password?.trim() || generatedPlain)!);
+    // 優先順位：運営が明示指定したPW（passwordHash>password）＝リセット扱い ＞ 申込保存ハッシュ ＞ 自動生成。
+    const explicitHash = input.passwordHash?.trim() || (input.password?.trim() ? hashPassword(input.password.trim()) : "");
+    const storedHash = client.ownerPasswordHash?.trim() || "";
+    const generatedPlain = explicitHash || storedHash ? undefined : crypto.randomBytes(9).toString("base64url");
+    const passwordHash = explicitHash || storedHash || hashPassword(generatedPlain!);
     const ownerName = input.ownerName?.trim() || client.ownerName?.trim() || client.name || client.contactEmail;
     const email = client.contactEmail.trim().toLowerCase();
     const existingUsers = await tenantDb.users.list();
-    if (!existingUsers.some((u) => u.email.trim().toLowerCase() === email)) {
+    const existingOwner = existingUsers.find((u) => u.email.trim().toLowerCase() === email);
+    if (!existingOwner) {
       await tenantDb.users.create({
         id: uid("u"),
         email: client.contactEmail,
@@ -133,6 +136,9 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
         passwordHash,
         createdAt: new Date().toISOString(),
       });
+    } else if (explicitHash) {
+      // 運営が明示的にパスワードを渡した＝既存オーナーのパスワードを上書き（リセット）
+      await tenantDb.users.update(existingOwner.id, { passwordHash });
     }
     // 使用済みの一時ハッシュはクリア（平文は元々保持しない）
     if (client.ownerPasswordHash) await db.clientAccounts.update(client.id, { ownerPasswordHash: "" });
