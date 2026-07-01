@@ -81,7 +81,6 @@ async function resolveFromLedger(slug) {
     limit 1`;
   if (!accounts.length) return null;
   const { id, status } = accounts[0];
-  if (status === "canceled") return null; // 解約済みは振り向けない
   const insts = await sql`
     select data->>'databaseUrl' as database_url
     from lcall_kv
@@ -90,7 +89,8 @@ async function resolveFromLedger(slug) {
     limit 1`;
   if (!insts.length) return null;
   const databaseUrl = insts[0].database_url;
-  return databaseUrl ? { slug, databaseUrl } : null;
+  // status を運ぶ（active/trial 以外はハンドラでロック）。
+  return databaseUrl ? { slug, databaseUrl, status } : null;
 }
 
 async function resolveTenant(host) {
@@ -134,14 +134,31 @@ try {
 }
 console.log("> LCall server: prepared. starting HTTP server…");
 
+// 利用停止（未払い/停止/解約）テナントに返す簡易ページ。
+const SUSPENDED_HTML = `<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>利用停止中</title>
+<style>body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#fafafa;color:#1a1a1a;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}
+.card{max-width:420px;padding:32px;text-align:center;background:#fff;border:1px solid #eee;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+h1{font-size:18px;margin:0 0 12px}p{font-size:14px;color:#666;line-height:1.7;margin:0}</style></head>
+<body><div class="card"><h1>ただいまご利用を停止しています</h1>
+<p>お支払い状況の確認が必要です。恐れ入りますが、運営までお問い合わせください。<br>お支払いが確認され次第、自動的にご利用を再開いたします。</p></div></body></html>`;
+
 const server = createServer((req, res) => {
   const xfh = req.headers["x-forwarded-host"] || req.headers.host;
   const host = Array.isArray(xfh) ? xfh[0] : xfh;
   // 解決は非同期（台帳DB参照）。解決後にリクエストを als.run で包む。
   resolveTenant(host)
     .then((tenant) => {
-      if (tenant) tenantALS.run(tenant, () => handle(req, res));
-      else handle(req, res);
+      if (!tenant) return handle(req, res);
+      // 台帳状態が active/trial 以外（suspended/past_due/canceled 等）はロック。
+      const st = tenant.status;
+      if (st && st !== "active" && st !== "trial") {
+        res.statusCode = 403;
+        res.setHeader("content-type", "text/html; charset=utf-8");
+        res.end(SUSPENDED_HTML);
+        return;
+      }
+      tenantALS.run(tenant, () => handle(req, res));
     })
     .catch(() => handle(req, res));
 });

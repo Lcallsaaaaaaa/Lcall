@@ -22,6 +22,8 @@ export interface TenantConfig {
   adapter?: "postgres" | "file";
   databaseUrl?: string;
   dataFile?: string;
+  /** 台帳のクライアント状態（active/trial 以外はサーバがロック）。静的レジストリでは未指定＝稼働扱い。 */
+  status?: string;
 }
 
 declare global {

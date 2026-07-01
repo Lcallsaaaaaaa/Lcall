@@ -1,9 +1,9 @@
 import { revalidatePath } from "next/cache";
 import { getDataProvider } from "@/lib/data/provider";
 import type { DataProvider } from "@/lib/data/repository";
-import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
+import type { BillingCustomer, ClientAccount, Invoice, PlanCode } from "@/lib/data/types";
 import { finalizeReservationConfirmed } from "@/features/reservations/finalize";
-import { accrueRecurringForClient, ensureSignupCommission } from "@/features/operator/affiliate";
+import { accrueRecurringForClient, currentPeriodMonth, ensureSignupCommission } from "@/features/operator/affiliate";
 import { provisionTenant } from "@/features/operator/provision";
 import { isControlPlane } from "@/lib/operator";
 import { stripe, verifyStripeSignature } from "@/lib/stripe";
@@ -46,11 +46,32 @@ async function handleControlPlaneBilling(db: DataProvider, type: string, obj: an
       // 決済確定＝ここで初めて専用DBを作成・開通（申込時に保存したオーナー名/PWハッシュで初期オーナー作成）。
       await provisionTenant({ clientAccountId: client.id });
       await ensureSignupCommission(client.id); // 初回報酬（紹介経由のみ・冪等）
+      // 初月の月次報酬もここで計上（invoice.paid の到着順に依存させない・冪等で二重計上なし）。
+      await accrueRecurringForClient(client.id, currentPeriodMonth());
       break;
     case "invoice.paid":
+      // 支払い成功＝稼働へ復帰（未払いで suspended だった場合の回復も兼ねる）。
       await db.clientAccounts.update(client.id, { status: "active" });
       await accrueRecurringForClient(client.id, periodMonth()); // 月次レベニューシェア
       break;
+    case "invoice.payment_failed":
+      // 支払い失敗＝停止（server.mjs が active/trial 以外をロック）。Stripeの再試行成功で invoice.paid→active に戻る。
+      await db.clientAccounts.update(client.id, { status: "suspended" });
+      break;
+    case "customer.subscription.updated": {
+      // サブスク状態を台帳へ同期（past_due/unpaid/paused→停止、canceled→解約、active/trialing→稼働）。
+      const map: Record<string, ClientAccount["status"]> = {
+        active: "active",
+        trialing: "active",
+        past_due: "suspended",
+        unpaid: "suspended",
+        paused: "suspended",
+        canceled: "canceled",
+      };
+      const next = map[String(obj?.status ?? "")];
+      if (next) await db.clientAccounts.update(client.id, { status: next });
+      break;
+    }
     case "customer.subscription.deleted":
       await db.clientAccounts.update(client.id, { status: "canceled" });
       break;
