@@ -11,6 +11,7 @@ const yen = (n: number) => `¥${n.toLocaleString()}`;
 const fmtDate = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
 
 const CLIENT_STATUS: Record<ClientRow["client"]["status"], { tone: BadgeTone; label: string }> = {
+  pending: { tone: "neutral", label: "決済待ち" },
   trial: { tone: "info", label: "トライアル" },
   active: { tone: "ok", label: "稼働中" },
   suspended: { tone: "warn", label: "停止中" },

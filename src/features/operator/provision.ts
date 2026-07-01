@@ -43,10 +43,12 @@ export function autoProvisionEnabled(): boolean {
 
 export interface ProvisionInput {
   clientAccountId: string;
-  /** 初期オーナーの表示名（未指定はメール） */
+  /** 初期オーナーの表示名（未指定は台帳 ownerName→クライアント名→メール） */
   ownerName?: string;
-  /** 初期オーナーの平文パスワード（申込フォームで本人が設定）。未指定なら自動生成し tempPassword を返す。 */
+  /** 初期オーナーの平文パスワード（運営の手動開通など）。未指定かつハッシュも無ければ自動生成し tempPassword を返す。 */
   password?: string;
+  /** 初期オーナーPWの scrypt ハッシュ（申込時に保存した ownerPasswordHash を使う場合）。未指定なら台帳の値を使う。 */
+  passwordHash?: string;
 }
 
 export interface ProvisionOutcome {
@@ -113,20 +115,26 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
         : await provisionNeonDatabase(client.slug);
 
     // 2) そのテナントDBに初期オーナーを作成（schema は初回アクセスで自動生成）
+    // パスワードは：明示ハッシュ→台帳保存ハッシュ→明示平文→自動生成、の優先で決定。
     const tenantDb = createPostgresProvider(ENTITY_NAMES(), provisioned.databaseUrl);
-    const plain = input.password?.trim() || crypto.randomBytes(9).toString("base64url");
+    const providedHash = input.passwordHash?.trim() || client.ownerPasswordHash?.trim() || "";
+    const generatedPlain = providedHash || input.password?.trim() ? undefined : crypto.randomBytes(9).toString("base64url");
+    const passwordHash = providedHash || hashPassword((input.password?.trim() || generatedPlain)!);
+    const ownerName = input.ownerName?.trim() || client.ownerName?.trim() || client.name || client.contactEmail;
     const email = client.contactEmail.trim().toLowerCase();
     const existingUsers = await tenantDb.users.list();
     if (!existingUsers.some((u) => u.email.trim().toLowerCase() === email)) {
       await tenantDb.users.create({
         id: uid("u"),
         email: client.contactEmail,
-        name: input.ownerName?.trim() || client.name || client.contactEmail,
+        name: ownerName,
         role: "owner",
-        passwordHash: hashPassword(plain),
+        passwordHash,
         createdAt: new Date().toISOString(),
       });
     }
+    // 使用済みの一時ハッシュはクリア（平文は元々保持しない）
+    if (client.ownerPasswordHash) await db.clientAccounts.update(client.id, { ownerPasswordHash: "" });
     // プラン設定をテナントDBに反映（機能ゲート・上限の単一情報源）
     const settings = await tenantDb.systemSettings.list();
     const planRow = settings.find((s) => s.key === "plan");
@@ -147,7 +155,7 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
       mode: driver,
       databaseUrl: provisioned.databaseUrl,
       baseUrl,
-      tempPassword: input.password?.trim() ? undefined : plain,
+      tempPassword: generatedPlain,
     };
   } catch (e) {
     await db.clientInstances.update(instance.id, { provisionStatus: "failed" });

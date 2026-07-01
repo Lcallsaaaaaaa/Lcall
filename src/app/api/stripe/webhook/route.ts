@@ -4,6 +4,7 @@ import type { DataProvider } from "@/lib/data/repository";
 import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
 import { finalizeReservationConfirmed } from "@/features/reservations/finalize";
 import { accrueRecurringForClient, ensureSignupCommission } from "@/features/operator/affiliate";
+import { provisionTenant } from "@/features/operator/provision";
 import { isControlPlane } from "@/lib/operator";
 import { stripe, verifyStripeSignature } from "@/lib/stripe";
 
@@ -42,6 +43,8 @@ async function handleControlPlaneBilling(db: DataProvider, type: string, obj: an
         // 顧客IDが未登録（申込Checkout）なら採番値を保存。以後 invoice 系はこれで引ける。
         ...(cus && !client.stripeCustomerId ? { stripeCustomerId: cus } : {}),
       });
+      // 決済確定＝ここで初めて専用DBを作成・開通（申込時に保存したオーナー名/PWハッシュで初期オーナー作成）。
+      await provisionTenant({ clientAccountId: client.id });
       await ensureSignupCommission(client.id); // 初回報酬（紹介経由のみ・冪等）
       break;
     case "invoice.paid":

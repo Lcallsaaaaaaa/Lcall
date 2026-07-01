@@ -55,6 +55,11 @@ export default async function SignupPage({
           {sp.err && (
             <p className="mb-4 rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">{sp.err}</p>
           )}
+          {!willCharge && (
+            <p className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-sm text-muted">
+              ただいまお申し込みの準備中です（決済設定の反映待ち）。少し時間をおいて再度お試しください。
+            </p>
+          )}
 
           <form action={submitSignup} className="space-y-4">
             {sp.aff && <input type="hidden" name="aff" value={sp.aff} />}
@@ -115,13 +120,11 @@ export default async function SignupPage({
               </Select>
             </FormField>
 
-            <button type="submit" className={buttonClasses("gradient", "lg", "w-full")}>
-              {willCharge ? "申し込んでお支払いへ進む" : "申し込む（無料トライアル）"}
+            <button type="submit" disabled={!willCharge} className={buttonClasses("gradient", "lg", "w-full")}>
+              申し込んでお支払いへ進む
             </button>
             <p className="text-center text-xs text-faint">
-              {willCharge
-                ? "次の画面（Stripe）でカード情報を登録します。初期費用は別途ご案内します。"
-                : "お支払い設定は後ほどご案内します。"}
+              次の画面（Stripe）でカード情報を登録し、月額サブスクリプションを開始します。決済の確定後にシステムが発行されます。
             </p>
           </form>
         </div>

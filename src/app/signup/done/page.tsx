@@ -70,9 +70,9 @@ export default async function SignupDonePage({
                 <span className="font-medium">システムを準備しています</span>
               </div>
               <p className="text-sm text-muted">
-                {client.name} 様のシステム（<span className="font-medium text-ink">{client.slug}.</span>
-                {(process.env.LCALL_TENANT_BASE_DOMAIN || "lcall.shop").replace(/^https?:\/\//, "")}）を準備中です。
-                準備が整い次第、ご登録のメール（{client.contactEmail}）にログイン情報をお送りします。
+                決済を確認しました。<span className="font-medium text-ink">{client.slug}.
+                {(process.env.LCALL_TENANT_BASE_DOMAIN || "lcall.shop").replace(/^https?:\/\//, "")}</span>{" "}
+                のシステムを発行しています（数十秒）。この画面を<span className="font-medium text-ink">再読み込み</span>すると、ログインURLが表示されます。
               </p>
             </>
           )}

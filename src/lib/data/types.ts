@@ -609,12 +609,20 @@ export interface ClientAccount {
   slug: string;
   contactEmail: string;
   plan: PlanCode;
-  status: "trial" | "active" | "suspended" | "canceled";
+  /** pending=申込済み・決済待ち（未開通）／active=決済済み・稼働／trial=（旧）／suspended／canceled。 */
+  status: "pending" | "trial" | "active" | "suspended" | "canceled";
   /**
    * 申込時に採番された Stripe 顧客ID（cus_…）。納品前の支払い情報と
    * 各インスタンスの BillingCustomer を結ぶ鍵。カード番号自体は保持しない（Stripe保管）。
    */
   stripeCustomerId?: string;
+  /** 申込者が設定した初期オーナーの表示名（決済確定後のプロビジョニングで使用）。 */
+  ownerName?: string;
+  /**
+   * 申込者が設定した初期オーナーPWの scrypt ハッシュ（一時保管）。
+   * 決済確定→専用DB作成時にオーナー作成へ使い、成功後に空へクリアする（平文は保持しない）。
+   */
+  ownerPasswordHash?: string;
   /** 獲得元アフィリエイト（紹介者）。設定時、月次でレベニューシェアを計上。 */
   affiliateId?: ID;
   /** サポートプラン（¥15,000/月・アフィリ20%対象）を契約しているか（運営が台帳で管理）。 */

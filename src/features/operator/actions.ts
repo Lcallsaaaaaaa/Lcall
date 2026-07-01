@@ -22,7 +22,9 @@ function parsePlan(v: FormDataEntryValue | null): PlanCode {
 }
 function parseStatus(v: FormDataEntryValue | null): ClientAccount["status"] {
   const s = String(v ?? "");
-  return s === "trial" || s === "active" || s === "suspended" || s === "canceled" ? s : "trial";
+  return s === "pending" || s === "trial" || s === "active" || s === "suspended" || s === "canceled"
+    ? s
+    : "trial";
 }
 function slugify(s: string): string {
   return (

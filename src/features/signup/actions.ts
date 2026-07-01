@@ -1,16 +1,21 @@
 "use server";
 
+import crypto from "node:crypto";
 import { redirect } from "next/navigation";
-import { ensureSignupCommission } from "@/features/operator/affiliate";
-import { provisionTenant } from "@/features/operator/provision";
 import { getDataProvider } from "@/lib/data/provider";
 import type { PlanCode } from "@/lib/data/types";
 import { isControlPlane } from "@/lib/operator";
 import { normalizeSlug, validateSlug } from "@/lib/slug";
+import { stripeEnabled } from "@/lib/stripe";
 import { createSignupCheckoutUrl } from "./checkout";
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+}
+/** 平文を scrypt ハッシュ（`scrypt:salt:hash`）。オーナーPWを一時保管する用。 */
+function hashPassword(plain: string): string {
+  const salt = crypto.randomBytes(16);
+  return `scrypt:${salt.toString("hex")}:${crypto.scryptSync(plain, salt, 64).toString("hex")}`;
 }
 function str(v: FormDataEntryValue | null): string {
   return (v == null ? "" : String(v)).trim();
@@ -65,7 +70,11 @@ export async function submitSignup(formData: FormData) {
     affiliateId = aff?.id; // 無効コードは無視（直販扱い）
   }
 
-  // --- 台帳に登録（trial） ---
+  // --- 決済必須：無料開放しない。Stripe未設定なら受付停止（空DB量産・悪用防止） ---
+  if (!stripeEnabled())
+    backWithError("現在お申し込みを受け付けていません（決済準備中）。運営にお問い合わせください。", keepFields);
+
+  // --- 台帳に「決済待ち(pending)」で登録。オーナーPWはハッシュで一時保管（発行時に使用・平文は保持しない） ---
   const id = uid("ca");
   const now = new Date().toISOString();
   await db.clientAccounts.create({
@@ -74,8 +83,10 @@ export async function submitSignup(formData: FormData) {
     slug,
     contactEmail: email,
     plan,
-    status: "trial",
+    status: "pending",
     affiliateId,
+    ownerName: name,
+    ownerPasswordHash: hashPassword(password),
     createdAt: now,
   });
   if (affiliateId) {
@@ -92,18 +103,10 @@ export async function submitSignup(formData: FormData) {
       });
   }
 
-  // --- 自動プロビジョニング（専用DB＋オーナー作成＝即開通） ---
-  await provisionTenant({ clientAccountId: id, ownerName: name, password });
-
-  // --- 決済（Stripeあり＝サブスクへ。なし＝トライアルのまま完了画面） ---
+  // --- 決済へ（サブスクCheckout）。決済確定のwebhookで専用DB作成＋開通＋初回報酬（冪等） ---
   const client = await db.clientAccounts.get(id);
   const checkoutUrl = client ? await createSignupCheckoutUrl(client) : null;
-  if (checkoutUrl) {
-    // 初回報酬は決済確定（webhook）で計上（冪等）。ここでは作らない。
-    redirect(checkoutUrl);
-  }
-
-  // Stripe未設定（トライアル運用）：この場で初回報酬を計上（紹介経由のみ・冪等）。
-  if (affiliateId) await ensureSignupCommission(id);
-  redirect(`/signup/done?ca=${id}`);
+  if (!checkoutUrl)
+    backWithError("決済ページを開始できませんでした。時間をおいて再度お試しください。", keepFields);
+  redirect(checkoutUrl);
 }

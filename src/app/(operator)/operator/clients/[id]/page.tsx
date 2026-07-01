@@ -22,6 +22,7 @@ const fmt = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
 const mask = (s: string) => (s.length > 10 ? `${s.slice(0, 6)}…${s.slice(-4)}` : "••••");
 
 const CLIENT_STATUS: Record<string, { tone: BadgeTone; label: string }> = {
+  pending: { tone: "neutral", label: "決済待ち" },
   trial: { tone: "info", label: "トライアル" },
   active: { tone: "ok", label: "稼働中" },
   suspended: { tone: "warn", label: "停止中" },
@@ -294,6 +295,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </FormField>
             <FormField label="契約状態" htmlFor="status">
               <Select id="status" name="status" defaultValue={client.status}>
+                <option value="pending">決済待ち</option>
                 <option value="trial">トライアル</option>
                 <option value="active">稼働中</option>
                 <option value="suspended">停止中</option>
