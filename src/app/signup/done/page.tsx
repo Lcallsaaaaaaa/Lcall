@@ -1,9 +1,11 @@
 import { CheckCircle2, Clock } from "lucide-react";
 import { notFound } from "next/navigation";
+import { buttonClasses } from "@/components/ui/Button";
 import { GradientLogo } from "@/components/ui/GradientLogo";
 import { getDataProvider } from "@/lib/data/provider";
 import { isControlPlane } from "@/lib/operator";
 import { tenantBaseUrl } from "@/features/operator/provision";
+import { AutoRedirect } from "./AutoRedirect";
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +61,12 @@ export default async function SignupDonePage({
                   <dd className="mt-0.5 text-ink">お申し込み時にご入力いただいたパスワード</dd>
                 </div>
               </dl>
+              <a href={loginUrl} className={buttonClasses("gradient", "lg", "mt-5 w-full")}>
+                管理画面にログイン →
+              </a>
+              <AutoRedirect url={loginUrl} seconds={5} />
               <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
-                上記URLからログインし、LINE公式アカウントを接続すると配信を始められます。
+                ログイン後、LINE公式アカウントを接続すると配信を始められます。ログイン情報はご登録のメールにもお送りしました。
               </p>
             </>
           ) : (

@@ -3,6 +3,7 @@ import { createPostgresProvider } from "@/lib/data/postgres-adapter";
 import { getDataProvider } from "@/lib/data/provider";
 import { buildEmptySeed } from "@/lib/data/seed";
 import type { EntityName } from "@/lib/data/types";
+import { sendEmail } from "@/lib/email";
 import { localPgEnabled, provisionLocalPgDatabase } from "./localpg";
 import { neonEnabled, provisionNeonDatabase } from "./neon";
 import { addTenantCustomDomain, renderDomainAutoEnabled } from "./render";
@@ -163,6 +164,33 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
     if (host && renderDomainAutoEnabled()) {
       const r = await addTenantCustomDomain(host);
       if (!r.ok) console.error(`[provision] Render ドメイン登録失敗 ${host}: ${r.error}`);
+    }
+
+    // 5) 発行完了メール（Resend設定時のみ送信・未設定はスキップ・ベストエフォート）。
+    if (baseUrl && client.contactEmail) {
+      const loginUrl = `${baseUrl}/login`;
+      const pwLine =
+        generatedPlain
+          ? `パスワード：${generatedPlain}`
+          : input.password?.trim()
+            ? `パスワード：${input.password.trim()}`
+            : "パスワード：お申し込み時にご設定いただいたパスワード";
+      await sendEmail({
+        to: client.contactEmail,
+        subject: "【LCall】システムの発行が完了しました",
+        text: `${client.name} 様
+
+お申し込みいただいたシステムの発行が完了しました。下記からログインしてご利用ください。
+
+▼ 管理画面
+${loginUrl}
+ログインID：${client.contactEmail}
+${pwLine}
+
+ログイン後、LINE公式アカウントを接続すると配信を始められます。
+
+— LCall`,
+      }).catch(() => {});
     }
 
     return {

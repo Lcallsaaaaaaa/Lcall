@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { buttonClasses } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Form";
 import { GradientLogo } from "@/components/ui/GradientLogo";
-import { COMPANY } from "@/config/company";
 import { getSession, isDevLoginAllowed, isGoogleConfigured } from "@/lib/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -93,22 +92,7 @@ export default async function LoginPage({
           )}
         </div>
 
-        <nav className="mt-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-xs text-faint">
-          {[
-            { href: `${COMPANY.siteUrl}/legal/tokushoho`, label: "特定商取引法に基づく表記" },
-            { href: `${COMPANY.siteUrl}/legal/privacy`, label: "プライバシーポリシー" },
-            { href: `${COMPANY.siteUrl}/legal/terms`, label: "利用規約" },
-            { href: `${COMPANY.siteUrl}/legal/refund`, label: "返金・キャンセル" },
-          ].map((l, i) => (
-            <span key={l.href} className="flex items-center gap-3">
-              {i > 0 && <span>·</span>}
-              <a href={l.href} target="_blank" rel="noopener noreferrer" className="transition hover:text-ink">
-                {l.label}
-              </a>
-            </span>
-          ))}
-        </nav>
-        <p className="mt-3 text-center text-xs text-faint">© {new Date().getFullYear()} LCall</p>
+        <p className="mt-6 text-center text-xs text-faint">© {new Date().getFullYear()} LCall</p>
       </div>
     </main>
   );
