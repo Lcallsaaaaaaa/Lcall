@@ -678,7 +678,10 @@ export interface InstanceMetric {
 
 // ----- アフィリエイト（外部パートナー→クライアント獲得）。今回はスキーマのみ -----
 
-/** 紹介者（アフィリエイト・パートナー）。 */
+/** アフィリのランク。agency=代理店（ネットワーク上限率）／member=一般・配下。未設定は従来（プラン準拠）。 */
+export type AffiliateRank = "agency" | "member";
+
+/** 紹介者（アフィリエイト・パートナー）。代理店方式（多段）に対応。 */
 export interface Affiliate {
   id: ID;
   name: string;
@@ -686,6 +689,14 @@ export interface Affiliate {
   /** 紹介リンクに使うコード（一意） */
   code: string;
   status: "active" | "suspended";
+  /** ランク（代理店/一般）。未設定は従来の一般扱い。 */
+  rank?: AffiliateRank;
+  /** 上位（紹介元）アフィリ。設定時、この人が獲得すると上位へオーバーライド報酬。 */
+  parentAffiliateId?: ID;
+  /** 初回報酬率（初期費に対する割合 0〜1）。未設定はランク既定→なければ従来値。 */
+  signupRate?: number;
+  /** 継続報酬率（月額に対する割合 0〜1）。未設定はランク既定→なければプラン準拠。 */
+  recurringRate?: number;
   /** 支払先メモ（口座等・任意） */
   payoutNote?: string;
   createdAt: ISODate;

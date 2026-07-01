@@ -3,8 +3,9 @@
 import crypto from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { AFFILIATE_RANKS, AFFILIATE_RATE_CAP } from "@/config/plans";
 import { getDataProvider } from "@/lib/data/provider";
-import type { AffiliateCommission, ClientAccount, PlanCode } from "@/lib/data/types";
+import type { Affiliate, AffiliateCommission, AffiliateRank, ClientAccount, PlanCode } from "@/lib/data/types";
 import { accrueRecurringForPeriod, currentPeriodMonth, ensureSignupCommission } from "./affiliate";
 import { callInstance, fetchInstanceStatus } from "./fleet";
 import { requireOperator } from "./guard";
@@ -209,7 +210,31 @@ function slugCode(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 16);
 }
 
-/** 紹介者を登録（コード未指定なら自動生成）。 */
+function parseRank(v: FormDataEntryValue | null): AffiliateRank | undefined {
+  const s = String(v ?? "");
+  return s === "agency" || s === "member" ? s : undefined;
+}
+/** "20"→0.2 / "0.2"→0.2 / 空→undefined。負値は無効。 */
+function parsePercent(v: FormDataEntryValue | null): number | undefined {
+  const s = str(v);
+  if (!s) return undefined;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return n > 1 ? n / 100 : n;
+}
+/** 親（上位）がいれば親率、なければ代理店率を上限とする。 */
+function capFrom(parent: Affiliate | null | undefined) {
+  const rate = (a: Affiliate, kind: "signup" | "recurring") => {
+    const explicit = kind === "signup" ? a.signupRate : a.recurringRate;
+    if (typeof explicit === "number") return explicit;
+    if (a.rank) return kind === "signup" ? AFFILIATE_RANKS[a.rank].signupRate : AFFILIATE_RANKS[a.rank].recurringRate;
+    return kind === "signup" ? AFFILIATE_RATE_CAP.signup : AFFILIATE_RATE_CAP.recurring;
+  };
+  if (!parent) return { signup: AFFILIATE_RATE_CAP.signup, recurring: AFFILIATE_RATE_CAP.recurring };
+  return { signup: rate(parent, "signup"), recurring: rate(parent, "recurring") };
+}
+
+/** 紹介者/代理店を登録（コード未指定なら自動生成・ランク/上位/料率対応・上限クランプ）。 */
 export async function createAffiliate(formData: FormData) {
   await requireOperator();
   const db = getDataProvider();
@@ -218,12 +243,27 @@ export async function createAffiliate(formData: FormData) {
   const existing = await db.affiliates.list();
   // コード一意化（重複なら接尾辞）
   while (existing.some((a) => a.code === code)) code = `${code}${Math.floor(Math.random() * 90 + 10)}`;
+
+  const rank = parseRank(formData.get("rank"));
+  const parentAffiliateId = str(formData.get("parentAffiliateId")) || undefined;
+  const parent = parentAffiliateId ? await db.affiliates.get(parentAffiliateId) : null;
+  const cap = capFrom(parent);
+  // 料率：明示入力→無ければランク既定。上限（親率/代理店率）でクランプ。
+  let signupRate = parsePercent(formData.get("signupRate")) ?? (rank ? AFFILIATE_RANKS[rank].signupRate : undefined);
+  let recurringRate = parsePercent(formData.get("recurringRate")) ?? (rank ? AFFILIATE_RANKS[rank].recurringRate : undefined);
+  if (typeof signupRate === "number") signupRate = Math.min(signupRate, cap.signup);
+  if (typeof recurringRate === "number") recurringRate = Math.min(recurringRate, cap.recurring);
+
   await db.affiliates.create({
     id: uid("aff"),
     name,
     email: str(formData.get("email")),
     code,
     status: "active",
+    rank,
+    parentAffiliateId: parent ? parent.id : undefined,
+    signupRate,
+    recurringRate,
     payoutNote: str(formData.get("payoutNote")) || undefined,
     createdAt: new Date().toISOString(),
   });

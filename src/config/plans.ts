@@ -174,6 +174,28 @@ export function planAffiliateRate(plan: PlanCode): number {
 /** 将来拡張の上限（§10）。Pro=50 のため headroom を持たせる。 */
 export const MAX_LINE_ACCOUNTS_FUTURE = 100;
 
+// ===== 代理店方式（多段アフィリ）の料率 =====
+// 方針：合計上限＝代理店(agency)率で固定。配下(member)が取る分を差し引いた残りが
+// 上位（代理店）へのオーバーライド。よって1ネットワークの合計は常に agency 率以内＝薄利保護。
+export type AffiliateRankCode = "agency" | "member";
+export interface AffiliateRankDef {
+  code: AffiliateRankCode;
+  name: string;
+  /** 初回報酬率（初期費に対する割合） */
+  signupRate: number;
+  /** 継続報酬率（月額に対する割合） */
+  recurringRate: number;
+}
+export const AFFILIATE_RANKS: Record<AffiliateRankCode, AffiliateRankDef> = {
+  agency: { code: "agency", name: "代理店", signupRate: 0.3, recurringRate: 0.25 },
+  member: { code: "member", name: "一般", signupRate: 0.2, recurringRate: 0.2 },
+};
+/** 料率の上限＝代理店率（代理店が配下に設定できる上限・ネットワーク合計の上限）。 */
+export const AFFILIATE_RATE_CAP = {
+  signup: AFFILIATE_RANKS.agency.signupRate,
+  recurring: AFFILIATE_RANKS.agency.recurringRate,
+} as const;
+
 /** 料金（§5 契約・請求管理）。月額はティア別（PLANS）に持つ。 */
 export const PRICING = {
   /** 初期導入サポート費（円）。UTAGEは初期費0なので低めに設定（納品型の一括構築費）。 */
