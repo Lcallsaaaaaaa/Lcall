@@ -11,7 +11,6 @@ import {
   chargeMonthly,
   openBillingPortal,
   recoverPayment,
-  reportAiUsage,
   simulatePaymentFailure,
   subscribePlan,
 } from "@/features/billing/actions";
@@ -56,13 +55,10 @@ export default async function BillingPage({
     mrr,
     paidTotal,
     aiReplies,
-    aiUsageAmount,
-    nextInvoiceEstimate,
+    aiMonthlyLimit,
     stripe,
     stripeTest,
     stripeOnboarded,
-    aiUnbilled,
-    aiUnbilledAmount,
   } = await getBilling();
 
   // 申込（Checkout）導線を出すか：未契約／解約／実Stripe有効だが未確立（モック顧客）
@@ -309,53 +305,24 @@ export default async function BillingPage({
             </Card>
           </div>
 
-          {/* AI従量 */}
-          {stripe ? (
-            <Card className="mb-5">
-              <CardHeader
-                title="AI自動応答（従量課金）"
-                description={`AI応答 1件あたり ${yen(PRICING.aiReplyUnitFee)}。未計上分をStripeの次回請求に加算します。`}
-              />
-              <div className="flex flex-wrap items-end justify-between gap-4 p-5">
-                <div className="flex gap-8">
-                  <div>
-                    <p className="text-sm text-muted">未計上のAI応対</p>
-                    <p className="mt-1 text-xl font-semibold text-ink">{aiUnbilled.toLocaleString()}件</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted">未計上の従量</p>
-                    <p className="mt-1 text-xl font-semibold text-ink">{yen(aiUnbilledAmount)}</p>
-                  </div>
-                </div>
-                <form action={reportAiUsage}>
-                  <Button type="submit" variant="outline" size="md">
-                    Stripeに計上（次回請求へ）
-                  </Button>
-                </form>
-              </div>
-            </Card>
-          ) : (
-            <Card className="mb-5">
-              <CardHeader
-                title="AI自動応答（従量課金）"
-                description={`AI応答 1件あたり ${yen(PRICING.aiReplyUnitFee)}。前回の月次請求以降の利用分を次回請求に合算します。`}
-              />
-              <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
-                <div>
-                  <p className="text-sm text-muted">当期のAI応対数</p>
-                  <p className="mt-1 text-xl font-semibold text-ink">{aiReplies.toLocaleString()}件</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted">AI従量（{yen(PRICING.aiReplyUnitFee)}/件・税込）</p>
-                  <p className="mt-1 text-xl font-semibold text-ink">{yen(aiUsageAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted">次回請求の見込み（月額＋従量）</p>
-                  <p className="mt-1 text-xl font-semibold text-ink">{yen(nextInvoiceEstimate)}</p>
-                </div>
-              </div>
-            </Card>
-          )}
+          {/* AI自動応答（プランに含む・月間上限あり） */}
+          <Card className="mb-5">
+            <CardHeader
+              title="AI自動応答（プランに含む）"
+              description={`月間 ${aiMonthlyLimit.toLocaleString()}回まで無料で含まれます。上限を超えると当月はAI自動応答を停止します（追加請求はありません）。`}
+            />
+            <div className="p-5">
+              <p className="text-sm text-muted">今月のAI応答</p>
+              <p className="mt-1 text-xl font-semibold text-ink">
+                {aiReplies.toLocaleString()} / {aiMonthlyLimit.toLocaleString()} 回
+              </p>
+              {aiReplies >= aiMonthlyLimit && (
+                <p className="mt-2 text-sm text-danger">
+                  今月の上限に達したため、AI自動応答は停止中です（来月1日にリセット）。
+                </p>
+              )}
+            </div>
+          </Card>
 
           {/* 操作 */}
           <Card className="mb-5">

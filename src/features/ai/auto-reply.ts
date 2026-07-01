@@ -1,5 +1,6 @@
+import { planAiMonthlyLimit } from "@/config/plans";
 import type { DataProvider } from "@/lib/data/repository";
-import type { AiCharacter, Friend, LineAccount } from "@/lib/data/types";
+import type { AiCharacter, Friend, LineAccount, PlanCode } from "@/lib/data/types";
 import { buildSystemPrompt, generateAiReply, resolveAiApiKey, type AiTurn } from "@/lib/anthropic";
 
 const HISTORY_LIMIT = 12;
@@ -75,6 +76,18 @@ export async function generateAutoReply(
   if (!friend || friend.aiPaused) return null;
 
   const all = await db.chatMessages.list();
+
+  // 月間AI上限（プランに含む）。到達したらAI応答を停止＝原価・請求サプライズを防ぐ。
+  const settings = await db.systemSettings.list();
+  const planKey = settings.find((s) => s.key === "plan")?.value;
+  const plan: PlanCode = planKey === "lite" || planKey === "standard" || planKey === "pro" ? planKey : "standard";
+  const ym = new Date().toISOString().slice(0, 7); // "YYYY-MM"（UTC。TZはApp側でJST固定だが月境界の厳密性はMVPで許容）
+  const usedThisMonth = all.filter((m) => m.ai && (m.createdAt ?? "").slice(0, 7) === ym).length;
+  if (usedThisMonth >= planAiMonthlyLimit(plan)) {
+    console.warn(`[AI] 月間上限に到達 (${usedThisMonth}/${planAiMonthlyLimit(plan)}) — 今月はAI応答を停止`);
+    return null;
+  }
+
   const history = all
     .filter((m) => m.friendId === friendId)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))

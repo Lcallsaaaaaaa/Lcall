@@ -45,6 +45,8 @@ export interface PlanDef {
   staffLimit: number;
   /** プラン別の月額料金（円） */
   monthlyFee: number;
+  /** 月間のAI自動応答の上限回数（プランに含む。超過でAI応答を停止＝原価・請求サプライズ防止） */
+  aiMonthlyLimit: number;
   /** このプランに含まれる機能 */
   features: PlanFeatureKey[];
   /**
@@ -66,6 +68,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     lineLimit: 5,
     staffLimit: 3,
     monthlyFee: 9800,
+    aiMonthlyLimit: 500,
     features: ["broadcast", "scenario", "forms", "chat", "aiCharacter", "richMenu"],
     affiliateRate: 0,
   },
@@ -75,6 +78,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     lineLimit: 20,
     staffLimit: 3,
     monthlyFee: 14800,
+    aiMonthlyLimit: 2000,
     features: [
       "broadcast",
       "scenario",
@@ -95,6 +99,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     lineLimit: 50,
     staffLimit: 3,
     monthlyFee: 19800,
+    aiMonthlyLimit: 5000,
     features: [
       "broadcast",
       "scenario",
@@ -169,6 +174,11 @@ export function planMonthlyFee(plan: PlanCode): number {
 /** プラン別の紹介報酬率（Standard以上のみ>0）。アフィリ計上の単一情報源。 */
 export function planAffiliateRate(plan: PlanCode): number {
   return PLANS[plan].affiliateRate;
+}
+
+/** プラン別の月間AI自動応答上限（プランに含む・超過で停止）。 */
+export function planAiMonthlyLimit(plan: PlanCode): number {
+  return PLANS[plan].aiMonthlyLimit;
 }
 
 /** 将来拡張の上限（§10）。Pro=50 のため headroom を持たせる。 */

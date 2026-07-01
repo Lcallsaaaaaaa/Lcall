@@ -1,6 +1,6 @@
 import { PLANS, PRICING, type PlanDef } from "@/config/plans";
 import { getDataProvider } from "@/lib/data/provider";
-import type { BillingCustomer, ChatMessage, Invoice } from "@/lib/data/types";
+import type { BillingCustomer, ChatMessage, Invoice, PlanCode } from "@/lib/data/types";
 import { stripeEnabled, isStripeTestKey } from "@/lib/stripe";
 
 /** 指定日時以降に送信した AI自動応答の件数（従量課金の対象）。 */
@@ -19,11 +19,13 @@ export interface BillingView {
   /** 月次経常収益（active のとき月額） */
   mrr: number;
   paidTotal: number;
-  /** 当期（前回の月次請求以降）のAI自動応答件数 */
+  /** 今月（暦月）のAI自動応答件数 */
   aiReplies: number;
-  /** AI従量の金額（aiReplies × 単価） */
+  /** プランに含まれる月間AI上限（超過で当月停止） */
+  aiMonthlyLimit: number;
+  /** AI従量の金額（プランに含むため常に0） */
   aiUsageAmount: number;
-  /** 次回請求の見込み額（月額＋AI従量） */
+  /** 次回請求の見込み額（月額のみ・AIは含む） */
   nextInvoiceEstimate: number;
   /** 実Stripe連携が有効か */
   stripe: boolean;
@@ -45,10 +47,11 @@ function addDays(iso: string, days: number): string {
 
 export async function getBilling(): Promise<BillingView> {
   const db = getDataProvider();
-  const [customers, allInvoices, chatMessages] = await Promise.all([
+  const [customers, allInvoices, chatMessages, settings] = await Promise.all([
     db.billingCustomers.list(),
     db.invoices.list(),
     db.chatMessages.list(),
+    db.systemSettings.list(),
   ]);
   const customer = customers[0] ?? null;
 
@@ -56,13 +59,14 @@ export async function getBilling(): Promise<BillingView> {
     .filter((i) => !customer || i.billingCustomerId === customer.id)
     .sort((a, b) => (a.issuedAt < b.issuedAt ? 1 : -1));
 
-  // 前回の月次請求以降の AI 応対を当期の従量として集計
-  const lastMonthly = invoices.find((i) => i.kind === "monthly");
-  const since = lastMonthly?.issuedAt ?? customer?.createdAt ?? "1970-01-01T00:00:00.000Z";
-  const aiReplies = countAiReplies(chatMessages, since);
-  const aiUsageAmount = aiReplies * PRICING.aiReplyUnitFee;
-  const aiUnbilled = chatMessages.filter((m) => m.ai && !m.aiBilled).length;
   const monthly = customer ? PLANS[customer.plan].monthlyFee : 0;
+  // AIはプランに含む（従量請求しない）。今月（暦月）のAI応答回数と月間上限を表示に使う。
+  const planKey = settings.find((s) => s.key === "plan")?.value;
+  const plan: PlanCode =
+    planKey === "lite" || planKey === "standard" || planKey === "pro" ? planKey : (customer?.plan ?? "standard");
+  const aiMonthlyLimit = PLANS[plan].aiMonthlyLimit;
+  const ym = new Date().toISOString().slice(0, 7);
+  const aiReplies = chatMessages.filter((m) => m.ai && (m.createdAt ?? "").slice(0, 7) === ym).length;
 
   const view: BillingView = {
     customer,
@@ -71,8 +75,9 @@ export async function getBilling(): Promise<BillingView> {
     mrr: customer && customer.status === "active" ? monthly : 0,
     paidTotal: invoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0),
     aiReplies,
-    aiUsageAmount,
-    nextInvoiceEstimate: customer ? monthly + aiUsageAmount : 0,
+    aiMonthlyLimit,
+    aiUsageAmount: 0, // プランに含む＝従量請求なし
+    nextInvoiceEstimate: monthly, // AIは含むため月額のみ
     stripe: stripeEnabled(),
     stripeTest: isStripeTestKey(),
     stripeOnboarded:
@@ -81,8 +86,8 @@ export async function getBilling(): Promise<BillingView> {
       customer.stripeCustomerId.startsWith("cus_") &&
       !customer.stripeCustomerId.startsWith("cus_mock") &&
       customer.stripeCustomerId !== "cus_demo",
-    aiUnbilled,
-    aiUnbilledAmount: aiUnbilled * PRICING.aiReplyUnitFee,
+    aiUnbilled: 0,
+    aiUnbilledAmount: 0,
   };
 
   if (customer?.paymentFailedAt) {
