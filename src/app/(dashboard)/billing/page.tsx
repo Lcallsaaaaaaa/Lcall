@@ -56,6 +56,7 @@ export default async function BillingPage({
     paidTotal,
     aiReplies,
     aiMonthlyLimit,
+    aiCredits,
     stripe,
     stripeTest,
     stripeOnboarded,
@@ -305,23 +306,29 @@ export default async function BillingPage({
             </Card>
           </div>
 
-          {/* AI自動応答（プランに含む・月間上限あり） */}
+          {/* AI自動応答（無料枠＋購入残高） */}
           <Card className="mb-5">
             <CardHeader
-              title="AI自動応答（プランに含む）"
-              description={`月間 ${aiMonthlyLimit.toLocaleString()}回まで無料で含まれます。上限を超えると当月はAI自動応答を停止します（追加請求はありません）。`}
+              title="AI自動応答（無料枠＋チャージ）"
+              description={`月間 ${aiMonthlyLimit.toLocaleString()}回まで無料。超過分は購入残高（繰り越し）を消費し、残高が無くなると停止します。`}
             />
-            <div className="p-5">
-              <p className="text-sm text-muted">今月のAI応答</p>
-              <p className="mt-1 text-xl font-semibold text-ink">
-                {aiReplies.toLocaleString()} / {aiMonthlyLimit.toLocaleString()} 回
-              </p>
-              {aiReplies >= aiMonthlyLimit && (
-                <p className="mt-2 text-sm text-danger">
-                  今月の上限に達したため、AI自動応答は停止中です（来月1日にリセット）。
+            <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-muted">今月の無料利用</p>
+                <p className="mt-1 text-xl font-semibold text-ink">
+                  {aiReplies.toLocaleString()} / {aiMonthlyLimit.toLocaleString()} 回
                 </p>
-              )}
+              </div>
+              <div>
+                <p className="text-sm text-muted">購入残高（繰り越し）</p>
+                <p className="mt-1 text-xl font-semibold text-ink">{aiCredits.toLocaleString()} 回</p>
+              </div>
             </div>
+            {aiReplies >= aiMonthlyLimit && aiCredits <= 0 && (
+              <p className="px-5 pb-5 text-sm text-danger">
+                無料枠を使い切り、購入残高もありません。AI自動応答は停止中です。追加をご希望の場合は運営までご連絡ください（¥1,000＝1,000回）。
+              </p>
+            )}
           </Card>
 
           {/* 操作 */}

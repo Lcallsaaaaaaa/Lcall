@@ -10,6 +10,7 @@ import { accrueRecurringForPeriod, currentPeriodMonth, ensureSignupCommission } 
 import { callInstance, fetchInstanceStatus } from "./fleet";
 import { requireOperator } from "./guard";
 import { provisionTenant } from "./provision";
+import { addTenantAiCredits } from "./tenant-ai";
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
@@ -166,6 +167,15 @@ export async function provisionClientNow(clientId: string, formData: FormData) {
   await requireOperator();
   const password = str(formData.get("password")) || undefined;
   await provisionTenant({ clientAccountId: clientId, password });
+  revalidate(clientId);
+  redirect(`/operator/clients/${clientId}`);
+}
+
+/** AI購入残高を付与（運営がチャージ販売分を加算）。テナントDBの aiCredits に加算。 */
+export async function grantAiCredits(clientId: string, formData: FormData) {
+  await requireOperator();
+  const amount = parseInt(str(formData.get("amount")) || "0", 10) || 0;
+  if (amount > 0) await addTenantAiCredits(clientId, amount);
   revalidate(clientId);
   redirect(`/operator/clients/${clientId}`);
 }

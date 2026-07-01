@@ -8,6 +8,7 @@ import { Badge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { DELIVERY_STEPS, deliveryProgress } from "@/config/delivery-steps";
 import { PLANS } from "@/config/plans";
 import {
+  grantAiCredits,
   provisionClientNow,
   refreshInstance,
   remoteControl,
@@ -16,6 +17,7 @@ import {
 } from "@/features/operator/actions";
 import { autoProvisionEnabled, tenantBaseUrl } from "@/features/operator/provision";
 import { getClientRow } from "@/features/operator/queries";
+import { getTenantAiStatus } from "@/features/operator/tenant-ai";
 
 const yen = (n: number) => `¥${n.toLocaleString()}`;
 const fmt = (s?: string) => (s ? new Date(s).toLocaleString("ja-JP") : "—");
@@ -56,6 +58,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     failed: { tone: "danger", label: "失敗" },
   };
   const ps = instance?.provisionStatus ? PSTAT[instance.provisionStatus] : undefined;
+  const aiStatus = await getTenantAiStatus(client.id);
 
   const provisionCmd = instance
     ? `npm run provision -- ${client.slug}` +
@@ -191,6 +194,44 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </p>
             )}
           </div>
+        </div>
+      </Card>
+
+      {/* AI利用・チャージ付与 */}
+      <Card className="mb-5">
+        <CardHeader
+          title="AI利用・チャージ"
+          description="無料枠（月）を超えたら購入残高を消費。運営が残高を付与できます（¥1,000＝1,000回の目安）。"
+        />
+        <div className="space-y-3 p-5 text-sm">
+          {aiStatus ? (
+            <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
+              <Row label="今月無料">
+                {aiStatus.usedThisMonth.toLocaleString()} / {aiStatus.freeLimit.toLocaleString()} 回
+              </Row>
+              <Row label="購入残高">{aiStatus.credits.toLocaleString()} 回</Row>
+              <Row label="状態">
+                {aiStatus.usedThisMonth < aiStatus.freeLimit
+                  ? "無料枠内"
+                  : aiStatus.credits > 0
+                    ? "残高消費中"
+                    : "停止中（要チャージ）"}
+              </Row>
+            </div>
+          ) : (
+            <p className="text-muted">未開通のため取得できません（開通後に表示）。</p>
+          )}
+          <form
+            action={grantAiCredits.bind(null, client.id)}
+            className="flex flex-wrap items-end gap-2 border-t border-line pt-3"
+          >
+            <FormField label="チャージ回数を付与" htmlFor="ai_amount" hint="例：1000（¥1,000＝1,000回の目安）">
+              <Input id="ai_amount" name="amount" type="number" min="0" step="100" placeholder="1000" className="w-40" />
+            </FormField>
+            <Button type="submit" variant="gradient" size="md">
+              残高を付与
+            </Button>
+          </form>
         </div>
       </Card>
 

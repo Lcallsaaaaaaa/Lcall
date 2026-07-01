@@ -21,8 +21,10 @@ export interface BillingView {
   paidTotal: number;
   /** 今月（暦月）のAI自動応答件数 */
   aiReplies: number;
-  /** プランに含まれる月間AI上限（超過で当月停止） */
+  /** プランに含まれる月間無料AI枠 */
   aiMonthlyLimit: number;
+  /** 購入残高（繰り越し・無料枠超過分に使用） */
+  aiCredits: number;
   /** AI従量の金額（プランに含むため常に0） */
   aiUsageAmount: number;
   /** 次回請求の見込み額（月額のみ・AIは含む） */
@@ -65,6 +67,7 @@ export async function getBilling(): Promise<BillingView> {
   const plan: PlanCode =
     planKey === "lite" || planKey === "standard" || planKey === "pro" ? planKey : (customer?.plan ?? "standard");
   const aiMonthlyLimit = PLANS[plan].aiMonthlyLimit;
+  const aiCredits = Math.max(0, parseInt(settings.find((s) => s.key === "aiCredits")?.value ?? "0", 10) || 0);
   const ym = new Date().toISOString().slice(0, 7);
   const aiReplies = chatMessages.filter((m) => m.ai && (m.createdAt ?? "").slice(0, 7) === ym).length;
 
@@ -76,6 +79,7 @@ export async function getBilling(): Promise<BillingView> {
     paidTotal: invoices.filter((i) => i.status === "paid").reduce((s, i) => s + i.amount, 0),
     aiReplies,
     aiMonthlyLimit,
+    aiCredits,
     aiUsageAmount: 0, // プランに含む＝従量請求なし
     nextInvoiceEstimate: monthly, // AIは含むため月額のみ
     stripe: stripeEnabled(),

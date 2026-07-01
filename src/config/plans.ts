@@ -45,7 +45,7 @@ export interface PlanDef {
   staffLimit: number;
   /** プラン別の月額料金（円） */
   monthlyFee: number;
-  /** 月間のAI自動応答の上限回数（プランに含む。超過でAI応答を停止＝原価・請求サプライズ防止） */
+  /** 月間の無料AI応答回数（プランに含む・毎月リセット）。これを超えると購入残高(aiCredits)を消費し、無ければ停止。 */
   aiMonthlyLimit: number;
   /** このプランに含まれる機能 */
   features: PlanFeatureKey[];
@@ -78,7 +78,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     lineLimit: 20,
     staffLimit: 3,
     monthlyFee: 14800,
-    aiMonthlyLimit: 2000,
+    aiMonthlyLimit: 500,
     features: [
       "broadcast",
       "scenario",
@@ -99,7 +99,7 @@ export const PLANS: Record<PlanCode, PlanDef> = {
     lineLimit: 50,
     staffLimit: 3,
     monthlyFee: 19800,
-    aiMonthlyLimit: 5000,
+    aiMonthlyLimit: 500,
     features: [
       "broadcast",
       "scenario",

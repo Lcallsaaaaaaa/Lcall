@@ -77,14 +77,20 @@ export async function generateAutoReply(
 
   const all = await db.chatMessages.list();
 
-  // 月間AI上限（プランに含む）。到達したらAI応答を停止＝原価・請求サプライズを防ぐ。
+  // 無料枠（プランに含む・毎月リセット）＋購入残高(aiCredits・繰り越し)。
+  // 無料枠内は無料。超過分は購入残高を1件ずつ消費し、残高0なら停止。
   const settings = await db.systemSettings.list();
   const planKey = settings.find((s) => s.key === "plan")?.value;
   const plan: PlanCode = planKey === "lite" || planKey === "standard" || planKey === "pro" ? planKey : "standard";
-  const ym = new Date().toISOString().slice(0, 7); // "YYYY-MM"（UTC。TZはApp側でJST固定だが月境界の厳密性はMVPで許容）
+  const freeLimit = planAiMonthlyLimit(plan);
+  const ym = new Date().toISOString().slice(0, 7); // "YYYY-MM"（UTC・月境界の厳密性はMVPで許容）
   const usedThisMonth = all.filter((m) => m.ai && (m.createdAt ?? "").slice(0, 7) === ym).length;
-  if (usedThisMonth >= planAiMonthlyLimit(plan)) {
-    console.warn(`[AI] 月間上限に到達 (${usedThisMonth}/${planAiMonthlyLimit(plan)}) — 今月はAI応答を停止`);
+  const creditRow = settings.find((s) => s.key === "aiCredits");
+  const credits = Math.max(0, parseInt(creditRow?.value ?? "0", 10) || 0);
+  // 無料枠を超えていて購入残高も無い → 停止。
+  const useCredit = usedThisMonth >= freeLimit;
+  if (useCredit && credits <= 0) {
+    console.warn(`[AI] 無料枠(${freeLimit})超過・購入残高0 — AI応答を停止`);
     return null;
   }
 
@@ -112,6 +118,10 @@ export async function generateAutoReply(
   if (!result.ok || !result.text) {
     console.warn(`[AI] 返信生成に失敗 (status=${result.status}): ${result.error ?? "本文なし"}`);
     return null;
+  }
+  // 無料枠超過分は購入残高(aiCredits)を1消費（生成成功時のみ）。
+  if (useCredit && creditRow) {
+    await db.systemSettings.update(creditRow.id, { value: String(Math.max(0, credits - 1)) });
   }
   return { text: result.text, characterName: character?.name ?? "AI" };
 }
