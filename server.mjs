@@ -120,12 +120,21 @@ async function resolveTenant(host) {
 }
 
 const port = parseInt(process.env.PORT || "3000", 10);
+// PaaS（Render等）はポート検出のため 0.0.0.0 への明示バインドが必要。
+const hostname = process.env.HOSTNAME?.trim() || "0.0.0.0";
 const app = next({ dev: false });
 const handle = app.getRequestHandler();
 
-await app.prepare();
+console.log("> LCall server: preparing Next app…");
+try {
+  await app.prepare();
+} catch (e) {
+  console.error("> LCall server: app.prepare() failed:", e);
+  process.exit(1);
+}
+console.log("> LCall server: prepared. starting HTTP server…");
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   const xfh = req.headers["x-forwarded-host"] || req.headers.host;
   const host = Array.isArray(xfh) ? xfh[0] : xfh;
   // 解決は非同期（台帳DB参照）。解決後にリクエストを als.run で包む。
@@ -135,6 +144,11 @@ createServer((req, res) => {
       else handle(req, res);
     })
     .catch(() => handle(req, res));
-}).listen(port, () => {
-  console.log(`> LCall server ready on :${port}${multiTenantEnabled() ? " (multi-tenant)" : ""}`);
+});
+server.on("error", (e) => {
+  console.error("> LCall server: HTTP server error:", e);
+  process.exit(1);
+});
+server.listen(port, hostname, () => {
+  console.log(`> LCall server ready on ${hostname}:${port}${multiTenantEnabled() ? " (multi-tenant)" : ""}`);
 });
