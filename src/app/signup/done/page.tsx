@@ -66,7 +66,7 @@ export default async function SignupDonePage({
               </a>
               <AutoRedirect url={loginUrl} seconds={5} />
               <p className="mt-4 rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
-                ログイン後、LINE公式アカウントを接続すると配信を始められます。ログイン情報はご登録のメールにもお送りしました。
+                ログイン後、LINE公式アカウントを接続すると配信を始められます。ログイン情報はこの画面で保存してください。
               </p>
             </>
           ) : (
