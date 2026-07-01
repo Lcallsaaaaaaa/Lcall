@@ -5,6 +5,7 @@ import { buildEmptySeed } from "@/lib/data/seed";
 import type { EntityName } from "@/lib/data/types";
 import { localPgEnabled, provisionLocalPgDatabase } from "./localpg";
 import { neonEnabled, provisionNeonDatabase } from "./neon";
+import { addTenantCustomDomain, renderDomainAutoEnabled } from "./render";
 
 /**
  * ②マルチテナントの自動開通（プロビジョニング）。
@@ -149,6 +150,14 @@ export async function provisionTenant(input: ProvisionInput): Promise<ProvisionO
       provisionRef: provisioned.dbName,
       status: "unknown",
     });
+
+    // 4) Render にサブドメインを自動登録（ワイルドカードだけでは配信されない＝個別登録が必要）。
+    //    DNS はワイルドカードCNAMEで解決済みのため、登録すれば即配信される。ベストエフォート。
+    const host = baseUrl.replace(/^https?:\/\//, "");
+    if (host && renderDomainAutoEnabled()) {
+      const r = await addTenantCustomDomain(host);
+      if (!r.ok) console.error(`[provision] Render ドメイン登録失敗 ${host}: ${r.error}`);
+    }
 
     return {
       ok: true,
