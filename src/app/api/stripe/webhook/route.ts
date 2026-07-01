@@ -14,8 +14,19 @@ import { stripe, verifyStripeSignature } from "@/lib/stripe";
  */
 async function handleControlPlaneBilling(db: DataProvider, type: string, obj: any): Promise<void> {
   const cus = obj?.customer ? String(obj.customer) : "";
-  if (!cus) return;
-  const client = (await db.clientAccounts.list()).find((c) => c.stripeCustomerId === cus);
+  // 顧客IDで台帳を引く。未紐づけ（申込Checkout初回）は client_reference_id / metadata で引き当て、
+  // 採番された顧客IDを台帳へ書き込む＝申込時の支払い情報とシステム情報の連結。
+  const accounts = await db.clientAccounts.list();
+  let client = cus ? accounts.find((c) => c.stripeCustomerId === cus) : undefined;
+  if (!client) {
+    const ref = String(
+      obj?.client_reference_id ??
+        obj?.metadata?.clientAccountId ??
+        obj?.subscription_details?.metadata?.clientAccountId ??
+        ""
+    );
+    if (ref) client = accounts.find((c) => c.id === ref);
+  }
   if (!client) return;
 
   function periodMonth(): string {
@@ -26,7 +37,11 @@ async function handleControlPlaneBilling(db: DataProvider, type: string, obj: an
 
   switch (type) {
     case "checkout.session.completed":
-      await db.clientAccounts.update(client.id, { status: "active" });
+      await db.clientAccounts.update(client.id, {
+        status: "active",
+        // 顧客IDが未登録（申込Checkout）なら採番値を保存。以後 invoice 系はこれで引ける。
+        ...(cus && !client.stripeCustomerId ? { stripeCustomerId: cus } : {}),
+      });
       await ensureSignupCommission(client.id); // 初回報酬（紹介経由のみ・冪等）
       break;
     case "invoice.paid":

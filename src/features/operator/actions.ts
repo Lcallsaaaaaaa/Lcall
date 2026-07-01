@@ -8,6 +8,7 @@ import type { AffiliateCommission, ClientAccount, PlanCode } from "@/lib/data/ty
 import { accrueRecurringForPeriod, currentPeriodMonth, ensureSignupCommission } from "./affiliate";
 import { callInstance, fetchInstanceStatus } from "./fleet";
 import { requireOperator } from "./guard";
+import { provisionTenant } from "./provision";
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
@@ -151,6 +152,19 @@ export async function refreshInstance(clientId: string, instanceId: string) {
     });
   }
   revalidate(clientId);
+}
+
+/**
+ * ②マルチテナント：このクライアントを今すぐ自動開通（プロビジョニング）する／失敗の再実行。
+ * Neon設定があれば専用DB作成＋オーナー作成＋台帳へ databaseUrl 書込（即開通）。
+ * 初期パスワードは任意（運営が設定）。空ならオーナー未作成時に自動生成（既存オーナーがあれば不要）。
+ */
+export async function provisionClientNow(clientId: string, formData: FormData) {
+  await requireOperator();
+  const password = str(formData.get("password")) || undefined;
+  await provisionTenant({ clientAccountId: clientId, password });
+  revalidate(clientId);
+  redirect(`/operator/clients/${clientId}`);
 }
 
 /** 納品チェックリストのステップ完了をトグル。 */

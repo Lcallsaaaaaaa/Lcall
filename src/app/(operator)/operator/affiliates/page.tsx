@@ -28,6 +28,8 @@ const CSTAT: Record<string, { tone: "neutral" | "info" | "ok"; label: string }> 
 export default async function OperatorAffiliatesPage() {
   const [rows, commissions] = await Promise.all([listAffiliateRows(), listCommissionRows()]);
   const period = currentPeriodMonth();
+  // 紹介リンクの土台（コントロールプレーンの公開URL）。未設定なら相対パスで案内。
+  const signupBase = (process.env.LCALL_PUBLIC_BASE_URL || "").trim().replace(/\/$/, "");
 
   return (
     <div className="mx-auto max-w-[960px] p-6 lg:p-8">
@@ -86,6 +88,9 @@ export default async function OperatorAffiliatesPage() {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted">コード: <code>{a.code}</code></p>
+                  <p className="mt-0.5 break-all text-xs text-muted">
+                    申込リンク: <code className="text-brand">{`${signupBase}/signup?aff=${a.code}`}</code>
+                  </p>
                 </div>
                 <div className="text-sm text-muted">
                   稼働{activeClients}社 ／ 月次見込 <span className="font-medium text-ink">{yen(monthlyShare)}</span>

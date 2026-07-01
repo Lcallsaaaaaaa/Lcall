@@ -7,7 +7,14 @@ import { FormField, Input, Select, Textarea } from "@/components/ui/Form";
 import { Badge, type BadgeTone } from "@/components/ui/StatusBadge";
 import { DELIVERY_STEPS, deliveryProgress } from "@/config/delivery-steps";
 import { PLANS } from "@/config/plans";
-import { refreshInstance, remoteControl, toggleDeliveryStep, updateClient } from "@/features/operator/actions";
+import {
+  provisionClientNow,
+  refreshInstance,
+  remoteControl,
+  toggleDeliveryStep,
+  updateClient,
+} from "@/features/operator/actions";
+import { autoProvisionEnabled, tenantBaseUrl } from "@/features/operator/provision";
 import { getClientRow } from "@/features/operator/queries";
 
 const yen = (n: number) => `¥${n.toLocaleString()}`;
@@ -39,6 +46,15 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const cs = CLIENT_STATUS[client.status];
   const doneSet = new Set(client.deliverySteps ?? []);
   const prog = deliveryProgress(client.deliverySteps);
+  const tenantUrl = tenantBaseUrl(client.slug);
+  const autoProvision = autoProvisionEnabled();
+  const PSTAT: Record<string, { tone: BadgeTone; label: string }> = {
+    ready: { tone: "ok", label: "開通済み" },
+    provisioning: { tone: "info", label: "開通処理中" },
+    pending: { tone: "neutral", label: "未開通" },
+    failed: { tone: "danger", label: "失敗" },
+  };
+  const ps = instance?.provisionStatus ? PSTAT[instance.provisionStatus] : undefined;
 
   const provisionCmd = instance
     ? `npm run provision -- ${client.slug}` +
@@ -130,6 +146,50 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
               </div>
             </>
           )}
+        </div>
+      </Card>
+
+      {/* ②マルチテナント 自動開通 */}
+      <Card className="mb-5">
+        <CardHeader
+          title="自動開通（マルチテナント）"
+          description="申込専用DBを作成し、サブドメインで即時に使えるようにします。"
+          action={ps ? <Badge tone={ps.tone}>{ps.label}</Badge> : <Badge tone="neutral">未開通</Badge>}
+        />
+        <div className="space-y-3 p-5 text-sm">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+            <Row label="サブドメイン">
+              {tenantUrl ? (
+                <a href={`${tenantUrl}/login`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-brand hover:underline">
+                  {tenantUrl} <ExternalLink className="size-3" />
+                </a>
+              ) : (
+                <span className="text-faint">LCALL_TENANT_BASE_DOMAIN 未設定</span>
+              )}
+            </Row>
+            <Row label="専用DB">
+              {instance?.databaseUrl ? (
+                <code className="text-xs text-muted">{mask(instance.databaseUrl)}</code>
+              ) : (
+                <span className="text-faint">未割当</span>
+              )}
+            </Row>
+          </div>
+          <div className="flex flex-wrap items-end gap-2 border-t border-line pt-3">
+            <form action={provisionClientNow.bind(null, client.id)} className="flex flex-wrap items-end gap-2">
+              <FormField label="初期パスワード（任意）" htmlFor="prov_pw" hint="空ならオーナー未作成時に自動生成">
+                <Input id="prov_pw" name="password" type="text" placeholder="（任意・8文字以上）" className="w-56" />
+              </FormField>
+              <Button type="submit" variant="gradient" size="md">
+                {instance?.provisionStatus === "ready" ? "再実行" : "今すぐ自動開通"}
+              </Button>
+            </form>
+            {!autoProvision && (
+              <p className="text-xs text-muted">
+                ※ 自動プロビジョニング未設定（`LCALL_PG_ADMIN_URL` または `NEON_API_KEY`）のため手動モードです。台帳に pending を立てるのみ（DBは別途用意）。
+              </p>
+            )}
+          </div>
         </div>
       </Card>
 

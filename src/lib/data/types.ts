@@ -636,6 +636,16 @@ export interface ClientInstance {
   /** ホスティングのメモ（Render/Railway 等・任意） */
   hostingNote?: string;
   status: "up" | "down" | "unknown";
+  /**
+   * ②マルチテナント（1アプリ＋クライアント別DB）でのこのテナント専用DB接続URL（Pooled）。
+   * 動的レジストリ（server.mjs が台帳から解決）が `<slug>.ドメイン` をこのDBへ振り向ける鍵。
+   * モデルB（インスタンス分離）では未使用（baseUrl 側に専用デプロイ）。
+   */
+  databaseUrl?: string;
+  /** 自動開通（プロビジョニング）の状態。②マルチテナントで使用。 */
+  provisionStatus?: "pending" | "provisioning" | "ready" | "failed";
+  /** プロビジョニングの参照（Neonのdb名等・再実行/削除の手がかり・任意）。 */
+  provisionRef?: string;
   /** 最終ヘルス確認で取得したアプリ版（任意） */
   appVersion?: string;
   lastSeenAt?: ISODate;
