@@ -7,6 +7,7 @@ import { AFFILIATE_RANKS, PLANS, PRICING } from "@/config/plans";
 import {
   accrueCommissions,
   createAffiliate,
+  regenerateAffiliateToken,
   setAffiliateStatus,
   setCommissionStatus,
 } from "@/features/operator/actions";
@@ -129,6 +130,13 @@ export default async function OperatorAffiliatesPage() {
                   <p className="mt-0.5 break-all text-xs text-muted">
                     申込リンク: <code className="text-brand">{`${signupBase}/signup?aff=${a.code}`}</code>
                   </p>
+                  {a.portalToken ? (
+                    <p className="mt-0.5 break-all text-xs text-muted">
+                      報酬確認: <code className="text-brand">{`${signupBase}/aff/${a.portalToken}`}</code>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-faint">報酬確認リンク未発行（右の「確認リンク発行」）</p>
+                  )}
                 </div>
                 <div className="text-sm text-muted">
                   稼働{activeClients}社 ／ 月次見込 <span className="font-medium text-ink">{yen(monthlyShare)}</span>
@@ -136,14 +144,18 @@ export default async function OperatorAffiliatesPage() {
                 <div className="text-sm text-muted">
                   未承認 {yen(pending)} ／ 承認 {yen(approved)} ／ 支払済 {yen(paid)}
                 </div>
-                <form
-                  action={setAffiliateStatus.bind(null, a.id, a.status === "active" ? "suspended" : "active")}
-                  className="ml-auto"
-                >
-                  <Button type="submit" variant="ghost" size="sm">
-                    {a.status === "active" ? "停止" : "有効化"}
-                  </Button>
-                </form>
+                <div className="ml-auto flex items-center gap-1">
+                  <form action={regenerateAffiliateToken.bind(null, a.id)}>
+                    <Button type="submit" variant="ghost" size="sm">
+                      {a.portalToken ? "確認リンク再発行" : "確認リンク発行"}
+                    </Button>
+                  </form>
+                  <form action={setAffiliateStatus.bind(null, a.id, a.status === "active" ? "suspended" : "active")}>
+                    <Button type="submit" variant="ghost" size="sm">
+                      {a.status === "active" ? "停止" : "有効化"}
+                    </Button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>

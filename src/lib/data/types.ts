@@ -697,6 +697,8 @@ export interface Affiliate {
   signupRate?: number;
   /** 継続報酬率（月額に対する割合 0〜1）。未設定はランク既定→なければプラン準拠。 */
   recurringRate?: number;
+  /** 報酬確認ページ（`/aff/<token>`）の閲覧用トークン（ログイン不要・配布用・再発行で無効化）。 */
+  portalToken?: string;
   /** 支払先メモ（口座等・任意） */
   payoutNote?: string;
   createdAt: ISODate;

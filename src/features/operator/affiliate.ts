@@ -1,7 +1,7 @@
 import { ADDONS, AFFILIATE_RANKS, PLANS, PRICING, planAffiliateRate } from "@/config/plans";
 import { getDataProvider } from "@/lib/data/provider";
 import type { DataProvider } from "@/lib/data/repository";
-import type { Affiliate, AffiliateCommission, ClientAccount } from "@/lib/data/types";
+import type { Affiliate, AffiliateCommission, ClientAccount, PlanCode } from "@/lib/data/types";
 
 const SUPPORT_ADDON = ADDONS.find((a) => a.key === "support_plan");
 
@@ -258,4 +258,88 @@ export async function listCommissionRows(limit = 50): Promise<CommissionRow[]> {
       affiliateName: affName.get(commission.affiliateId) ?? commission.affiliateId,
       clientName: clName.get(commission.clientAccountId) ?? commission.clientAccountId,
     }));
+}
+
+// ===== 報酬確認ページ（配布用・トークン閲覧） =====
+
+export interface AffiliatePortalData {
+  affiliate: Affiliate;
+  /** 自分が直接紹介した稼働クライアント（自分の月次報酬付き） */
+  clients: { id: string; name: string; plan: PlanCode; monthly: number }[];
+  /** 自分の報酬明細（新しい順） */
+  commissions: {
+    id: string;
+    kind: AffiliateCommission["kind"];
+    amount: number;
+    periodMonth?: string;
+    status: AffiliateCommission["status"];
+    clientName: string;
+    createdAt: string;
+  }[];
+  totals: { pending: number; approved: number; paid: number; monthlyShare: number };
+  /** 代理店の場合の配下アフィリ（各の稼働数＋自分へのオーバーライド月次） */
+  subs: { id: string; name: string; code: string; activeClients: number; overrideMonthly: number }[];
+}
+
+/** トークンからアフィリの報酬確認データを取得（閲覧専用）。見つからなければ null。 */
+export async function getAffiliatePortalByToken(token: string): Promise<AffiliatePortalData | null> {
+  const t = token?.trim();
+  if (!t) return null;
+  const db = getDataProvider();
+  const [affiliates, clients, commissions] = await Promise.all([
+    db.affiliates.list(),
+    db.clientAccounts.list(),
+    db.affiliateCommissions.list(),
+  ]);
+  const affiliate = affiliates.find((a) => a.portalToken && a.portalToken === t);
+  if (!affiliate) return null;
+
+  const clName = new Map(clients.map((c) => [c.id, c.name]));
+  const myActive = clients.filter((c) => c.status === "active" && c.affiliateId === affiliate.id);
+  const myClients = myActive.map((c) => ({
+    id: c.id,
+    name: c.name,
+    plan: c.plan,
+    monthly: clientRecurringCommission(c, affiliate).total,
+  }));
+
+  const allMy = commissions.filter((c) => c.affiliateId === affiliate.id);
+  const sum = (status: AffiliateCommission["status"]) =>
+    allMy.filter((c) => c.status === status).reduce((s, c) => s + c.amount, 0);
+  const myComm = allMy
+    .slice()
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 100)
+    .map((c) => ({
+      id: c.id,
+      kind: c.kind,
+      amount: c.amount,
+      periodMonth: c.periodMonth,
+      status: c.status,
+      clientName: clName.get(c.clientAccountId) ?? c.clientAccountId,
+      createdAt: c.createdAt,
+    }));
+
+  // 配下（自分を親に持つアフィリ）の実績＋自分へのオーバーライド見込み
+  const children = affiliates.filter((a) => a.parentAffiliateId === affiliate.id);
+  const subs = children.map((child) => {
+    const childActive = clients.filter((c) => c.status === "active" && c.affiliateId === child.id);
+    const overrideMonthly = childActive.reduce(
+      (s, c) =>
+        s + Math.round(Math.max(0, recurringRateOf(affiliate, c) - recurringRateOf(child, c)) * PLANS[c.plan].monthlyFee),
+      0
+    );
+    return { id: child.id, name: child.name, code: child.code, activeClients: childActive.length, overrideMonthly };
+  });
+
+  const monthlyShare =
+    myClients.reduce((s, c) => s + c.monthly, 0) + subs.reduce((s, x) => s + x.overrideMonthly, 0);
+
+  return {
+    affiliate,
+    clients: myClients,
+    commissions: myComm,
+    totals: { pending: sum("pending"), approved: sum("approved"), paid: sum("paid"), monthlyShare },
+    subs,
+  };
 }

@@ -264,9 +264,17 @@ export async function createAffiliate(formData: FormData) {
     parentAffiliateId: parent ? parent.id : undefined,
     signupRate,
     recurringRate,
+    portalToken: crypto.randomBytes(24).toString("hex"),
     payoutNote: str(formData.get("payoutNote")) || undefined,
     createdAt: new Date().toISOString(),
   });
+  affRevalidate();
+}
+
+/** 報酬確認ページのトークンを発行/再発行（旧リンクは無効化）。 */
+export async function regenerateAffiliateToken(id: string) {
+  await requireOperator();
+  await getDataProvider().affiliates.update(id, { portalToken: crypto.randomBytes(24).toString("hex") });
   affRevalidate();
 }
 
