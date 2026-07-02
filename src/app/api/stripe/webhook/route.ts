@@ -31,7 +31,10 @@ async function handleControlPlaneBilling(db: DataProvider, type: string, obj: an
   if (!client) return;
 
   function periodMonth(): string {
-    const sec = Number(obj?.lines?.data?.[0]?.period?.end ?? obj?.period?.end);
+    // 請求対象期間の「開始日(period.start)」で月を決める。
+    // サブスク初回請求の period.end は翌月頭になるため end を使うと翌月分として二重計上される。
+    // start を使うと初回は当月＝checkout.session.completed の currentPeriodMonth と一致し冪等（重複しない）。
+    const sec = Number(obj?.lines?.data?.[0]?.period?.start ?? obj?.period?.start);
     const d = Number.isFinite(sec) && sec > 0 ? new Date(sec * 1000) : new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }

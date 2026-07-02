@@ -627,6 +627,12 @@ export interface ClientAccount {
   affiliateId?: ID;
   /** サポートプラン（¥15,000/月・アフィリ20%対象）を契約しているか（運営が台帳で管理）。 */
   supportPlan?: boolean;
+  /**
+   * 申込時に「初期設定サポート（初回のみ・¥50,000）」を選択したか。
+   * true のとき申込Checkoutの初回請求へ一括計上し、初回アフィリ報酬もこの時のみ発生する
+   * （未購入＝初期費未徴収なので初回報酬は付けない）。
+   */
+  setupPurchased?: boolean;
   /** 納品チェックリストの完了ステップキー（config/delivery-steps の key） */
   deliverySteps?: string[];
   notes?: string;

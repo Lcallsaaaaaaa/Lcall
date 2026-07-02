@@ -93,6 +93,9 @@ export async function ensureSignupCommission(clientId: string): Promise<boolean>
   const db = getDataProvider();
   const client = await db.clientAccounts.get(clientId);
   if (!client?.affiliateId) return false;
+  // 初回報酬は「初期設定サポート（初期費）を実際に購入・徴収した申込」のみ。
+  // 未購入＝初期費を取っていない → 未回収の売上に報酬を付けない（薄利保護）。
+  if (!client.setupPurchased) return false;
   const child = await db.affiliates.get(client.affiliateId);
   if (!child) return false;
 

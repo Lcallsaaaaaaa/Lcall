@@ -1,4 +1,4 @@
-import { PLANS } from "@/config/plans";
+import { PLANS, PRICING } from "@/config/plans";
 import type { ClientAccount } from "@/lib/data/types";
 import { stripe, stripeEnabled } from "@/lib/stripe";
 
@@ -33,6 +33,19 @@ export async function createSignupCheckoutUrl(client: ClientAccount): Promise<st
           product_data: { name: `LCall ${plan.name} プラン（月額）` },
         },
       },
+      // 初期設定サポートを選択した申込のみ、初回請求に一度きりの項目として加算（recurring 無し＝一括）。
+      ...(client.setupPurchased
+        ? [
+            {
+              quantity: 1,
+              price_data: {
+                currency: "jpy",
+                unit_amount: PRICING.setupFee,
+                product_data: { name: "初期設定サポート（初回のみ）" },
+              },
+            },
+          ]
+        : []),
     ],
     success_url: `${base}/signup/done?ca=${client.id}`,
     cancel_url: `${base}/signup?canceled=1`,

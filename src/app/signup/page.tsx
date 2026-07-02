@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { buttonClasses } from "@/components/ui/Button";
 import { FormField, Input, Select } from "@/components/ui/Form";
 import { GradientLogo } from "@/components/ui/GradientLogo";
-import { PLANS } from "@/config/plans";
+import { PLANS, PRICING } from "@/config/plans";
 import { submitSignup } from "@/features/signup/actions";
 import { isControlPlane } from "@/lib/operator";
 import { stripeEnabled } from "@/lib/stripe";
@@ -24,6 +24,7 @@ export default async function SignupPage({
     contactEmail?: string;
     plan?: string;
     aff?: string;
+    setup?: string;
     canceled?: string;
   }>;
 }) {
@@ -119,6 +120,24 @@ export default async function SignupPage({
                 ))}
               </Select>
             </FormField>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-line bg-surface-2 px-3 py-3">
+              <input
+                type="checkbox"
+                name="setup"
+                value="1"
+                defaultChecked={sp.setup === "1"}
+                className="mt-0.5 h-4 w-4 accent-brand"
+              />
+              <span className="text-sm text-ink">
+                <span className="font-medium">
+                  初期設定サポート（¥{PRICING.setupFee.toLocaleString()}・初回のみ）を追加
+                </span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  LINE連携・シナリオ（ステップ配信）・AI初期設定などをまるごと代行。ご希望の場合のみ、初回のお支払いに一度だけ加算されます。
+                </span>
+              </span>
+            </label>
 
             <button type="submit" disabled={!willCharge} className={buttonClasses("gradient", "lg", "w-full")}>
               申し込んでお支払いへ進む

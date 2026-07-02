@@ -46,8 +46,9 @@ export async function submitSignup(formData: FormData) {
   const password = str(formData.get("password"));
   const plan = parsePlan(formData.get("plan"));
   const affCode = str(formData.get("aff"));
+  const setupPurchased = str(formData.get("setup")) === "1";
 
-  const keepFields = { name, slug, contactEmail: email, plan, aff: affCode };
+  const keepFields = { name, slug, contactEmail: email, plan, aff: affCode, setup: setupPurchased ? "1" : "" };
 
   // --- バリデーション ---
   if (!name) backWithError("事業者名を入力してください", keepFields);
@@ -98,6 +99,7 @@ export async function submitSignup(formData: FormData) {
     affiliateId,
     ownerName: name,
     ownerPasswordHash: hashPassword(password),
+    setupPurchased,
     createdAt: now,
   });
   if (affiliateId) {
