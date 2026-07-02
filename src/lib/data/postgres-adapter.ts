@@ -135,3 +135,24 @@ export function createPostgresProvider(entityNames: EntityName[], connectionUrl?
   for (const name of entityNames) provider[name] = new PgRepository(sql, conn, name);
   return provider as DataProvider;
 }
+
+/** バックアップ用の1行（`lcall_kv` の生の行）。 */
+export interface KvRow {
+  entity: string;
+  id: string;
+  data: unknown;
+}
+
+/**
+ * バックアップ用：`lcall_kv` の全行（entity/id/data）をそのまま取り出す。
+ * エンティティ名の一覧に依存せず、テーブルにある全データを丸ごとダンプできる
+ * （seed に無い将来のエンティティも取りこぼさない）。url 未指定は env `DATABASE_URL`。
+ */
+export async function dumpKvRows(connectionUrl?: string): Promise<KvRow[]> {
+  const conn = (connectionUrl ?? process.env.DATABASE_URL ?? "").trim();
+  const sql = getSql(conn);
+  await ensureSchema(sql, conn);
+  const rows = await sql<KvRow[]>`
+    select entity, id, data from lcall_kv order by entity, seq`;
+  return rows.map((r) => ({ entity: r.entity, id: r.id, data: r.data }));
+}
