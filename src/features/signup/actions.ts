@@ -57,8 +57,19 @@ export async function submitSignup(formData: FormData) {
   const sv = validateSlug(slug);
   if (!sv.ok) backWithError(sv.reason ?? "サブドメインが不正です", keepFields);
   const accounts = await db.clientAccounts.list();
-  if (accounts.some((c) => c.slug === slug))
-    backWithError("このサブドメインは既に使われています", keepFields);
+  const conflict = accounts.find((c) => c.slug === slug);
+  if (conflict) {
+    // 離脱した申込（pending かつ 24時間経過）は専用DB/ドメイン未発行なので、掃除して slug 再利用可。
+    const stalePending =
+      conflict.status === "pending" && Date.now() - Date.parse(conflict.createdAt) > 24 * 60 * 60 * 1000;
+    if (stalePending) {
+      const refs = (await db.affiliateReferrals.list()).filter((r) => r.clientAccountId === conflict.id);
+      for (const r of refs) await db.affiliateReferrals.remove(r.id);
+      await db.clientAccounts.remove(conflict.id);
+    } else {
+      backWithError("このサブドメインは既に使われています", keepFields);
+    }
+  }
 
   // --- アフィリコード解決（任意・active のみ） ---
   let affiliateId: string | undefined;

@@ -41,6 +41,23 @@ export async function getTenantAiStatus(clientAccountId: string): Promise<Tenant
   return { freeLimit: planAiMonthlyLimit(client.plan), usedThisMonth, credits };
 }
 
+/** テナントDBのプラン設定(systemSettings 'plan')を同期（プラン変更時）。 */
+export async function setTenantPlan(clientAccountId: string, plan: string): Promise<boolean> {
+  const ctx = await tenantDbFor(clientAccountId);
+  if (!ctx) return false;
+  const { tdb } = ctx;
+  const settings = await tdb.systemSettings.list();
+  const row = settings.find((s) => s.key === "plan");
+  if (row) await tdb.systemSettings.update(row.id, { value: plan });
+  else
+    await tdb.systemSettings.create({
+      id: `set_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      key: "plan",
+      value: plan,
+    });
+  return true;
+}
+
 /** テナントの購入残高(aiCredits)に加算（付与）。戻り＝加算後の残高／失敗は null。 */
 export async function addTenantAiCredits(clientAccountId: string, amount: number): Promise<number | null> {
   if (!Number.isFinite(amount) || amount === 0) return null;

@@ -7,8 +7,7 @@ import { getDataProvider } from "@/lib/data/provider";
 import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
 import { stripeEnabled } from "@/lib/stripe";
 import { publicBaseUrl } from "@/lib/url";
-import { countAiReplies } from "./queries";
-import { createCheckoutSession, createPortalSession, reportAiUsageToStripe } from "./stripe";
+import { createCheckoutSession, createPortalSession } from "./stripe";
 
 async function getOrigin(): Promise<string> {
   return publicBaseUrl();
@@ -112,24 +111,17 @@ export async function changePlan(formData: FormData) {
   revalidate();
 }
 
-/** 月額課金をシミュレート（成功）。月額＋AI自動応答の従量（前回月次請求以降）を合算。 */
+/** 月額課金をシミュレート（成功）。AIはプランに含むため月額のみ。 */
 export async function chargeMonthly() {
   const customer = await getCustomer();
   if (!customer) return;
   const db = getDataProvider();
-  const [invoices, messages] = await Promise.all([db.invoices.list(), db.chatMessages.list()]);
-  const lastMonthly = invoices
-    .filter((i) => i.billingCustomerId === customer.id && i.kind === "monthly")
-    .sort((a, b) => (a.issuedAt < b.issuedAt ? 1 : -1))[0];
-  const since = lastMonthly?.issuedAt ?? customer.createdAt;
-  const aiUsage = countAiReplies(messages, since) * PRICING.aiReplyUnitFee;
-
   await db.billingCustomers.update(customer.id, {
     status: "active",
     nextBillingAt: addMonths(new Date(), 1),
     paymentFailedAt: undefined,
   });
-  await addInvoice(customer.id, "monthly", planMonthlyFee(customer.plan) + aiUsage, "paid");
+  await addInvoice(customer.id, "monthly", planMonthlyFee(customer.plan), "paid");
   revalidate();
 }
 
@@ -174,17 +166,3 @@ export async function openBillingPortal() {
   redirect(`/billing?stripe=error&msg=${encodeURIComponent(error ?? "ポータル作成に失敗")}`);
 }
 
-/** 実Stripe: 未計上のAI応対（ai && !aiBilled）を invoice item として計上し、計上済みに印を付ける。 */
-export async function reportAiUsage() {
-  const customer = await getCustomer();
-  if (!stripeEnabled() || !customer?.stripeCustomerId) return;
-  const db = getDataProvider();
-  const unbilled = (await db.chatMessages.list()).filter((m) => m.ai && !m.aiBilled);
-  if (unbilled.length > 0) {
-    const res = await reportAiUsageToStripe(customer.stripeCustomerId, unbilled.length);
-    if (res.ok) {
-      await Promise.all(unbilled.map((m) => db.chatMessages.update(m.id, { aiBilled: true })));
-    }
-  }
-  revalidate();
-}

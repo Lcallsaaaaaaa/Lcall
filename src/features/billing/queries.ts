@@ -1,12 +1,7 @@
 import { PLANS, PRICING, type PlanDef } from "@/config/plans";
 import { getDataProvider } from "@/lib/data/provider";
-import type { BillingCustomer, ChatMessage, Invoice, PlanCode } from "@/lib/data/types";
+import type { BillingCustomer, Invoice, PlanCode } from "@/lib/data/types";
 import { stripeEnabled, isStripeTestKey } from "@/lib/stripe";
-
-/** 指定日時以降に送信した AI自動応答の件数（従量課金の対象）。 */
-export function countAiReplies(messages: ChatMessage[], sinceIso: string): number {
-  return messages.filter((m) => m.ai && m.createdAt > sinceIso).length;
-}
 
 export interface BillingView {
   customer: BillingCustomer | null;

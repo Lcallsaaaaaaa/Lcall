@@ -10,7 +10,7 @@ import { accrueRecurringForPeriod, currentPeriodMonth, ensureSignupCommission } 
 import { callInstance, fetchInstanceStatus } from "./fleet";
 import { requireOperator } from "./guard";
 import { provisionTenant } from "./provision";
-import { addTenantAiCredits } from "./tenant-ai";
+import { addTenantAiCredits, setTenantPlan } from "./tenant-ai";
 
 function uid(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
@@ -104,15 +104,19 @@ export async function createClient(formData: FormData) {
 export async function updateClient(id: string, formData: FormData) {
   await requireOperator();
   const db = getDataProvider();
+  const before = await db.clientAccounts.get(id);
+  const plan = parsePlan(formData.get("plan"));
   await db.clientAccounts.update(id, {
     name: str(formData.get("name")) || "無題のクライアント",
     contactEmail: str(formData.get("contactEmail")),
-    plan: parsePlan(formData.get("plan")),
+    plan,
     status: parseStatus(formData.get("status")),
     stripeCustomerId: str(formData.get("stripeCustomerId")) || undefined,
     supportPlan: str(formData.get("supportPlan")) === "on",
     notes: str(formData.get("notes")) || undefined,
   });
+  // プラン変更はテナントDBの 'plan' に同期（AI無料枠・機能ゲート・上限が追従）。
+  if (before && before.plan !== plan) await setTenantPlan(id, plan).catch(() => {});
   const instances = await db.clientInstances.list();
   const inst = instances.find((i) => i.clientAccountId === id);
   if (inst) {
