@@ -62,10 +62,16 @@ export async function saveImageBytes(
   if (accountId && accessKeyId && secretAccessKey && bucket && publicBase) {
     const client = new AwsClient({ accessKeyId, secretAccessKey, region: "auto", service: "s3" });
     const endpoint = `https://${accountId}.r2.cloudflarestorage.com/${bucket}/${filename}`;
+    // R2 は PUT に Content-Length 必須（aws4fetch は body をストリーム化し chunked になるため 411 になる）。
+    // 明示的に content-length を付けて chunked を防ぐ。Node(undici) では content-length を手動指定できる。
+    const body = new Uint8Array(buf);
     const res = await client.fetch(endpoint, {
       method: "PUT",
-      body: new Uint8Array(buf),
-      headers: { "content-type": contentType },
+      body,
+      headers: {
+        "content-type": contentType,
+        "content-length": String(body.byteLength),
+      },
     });
     if (!res.ok) throw new Error(`R2 upload failed: ${res.status}`);
     return `${publicBase.replace(/\/$/, "")}/${filename}`;
